@@ -1,0 +1,9 @@
+{% extends 'calendario/base.html' %}
+
+{% block title %}Bem-vindo ao Calendário{% endblock %}
+
+{% block content %}
+<h1>Bem-vindo ao Calendário!</h1>
+<p>Organize suas tarefas e lembretes diários de forma simples.</p>
+<a href="{% url 'user_login' %}">Faça login</a> ou <a href="{% url 'register' %}">registre-se</a> para começar.
+{% endblock %}

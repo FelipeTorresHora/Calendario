@@ -1,0 +1,13 @@
+{% extends 'calendario/base.html' %}
+
+{% block title %}Gerenciar Tarefa{% endblock %}
+
+{% block content %}
+<h1>{% if form.instance.id %}Editar{% else %}Criar{% endif %} Tarefa</h1>
+<form method="POST">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Salvar</button>
+</form>
+<a href="{% url 'dashboard' %}">Cancelar</a>
+{% endblock %}

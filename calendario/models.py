@@ -27,10 +27,30 @@ class CustomUser(AbstractUser):
         return self.email
 
 class Task(models.Model):
+    RECURRENCE_CHOICES = [
+        ('none', 'Sem recorrência'),
+        ('daily', 'Diariamente'),
+        ('weekly', 'Semanalmente'),
+        ('monthly', 'Mensalmente'),
+    ]
+
+    WEEKDAYS = [
+        (0, 'Segunda'),
+        (1, 'Terça'),
+        (2, 'Quarta'),
+        (3, 'Quinta'),
+        (4, 'Sexta'),
+        (5, 'Sábado'),
+        (6, 'Domingo'),
+    ]
+
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='tasks')
-    date = models.DateField()
     description = models.TextField()
+    date = models.DateField()
     is_done = models.BooleanField(default=False)
+    recurrence_type = models.CharField(max_length=10, choices=RECURRENCE_CHOICES, default='none')
+    recurrence_end_date = models.DateField(null=True, blank=True)
+    recurrence_days = models.JSONField(default=list, blank=True)
 
     def __str__(self):
         return self.description
