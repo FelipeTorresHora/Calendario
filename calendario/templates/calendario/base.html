@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Calendário{% endblock %}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="{% static 'css/styles.css' %}">
     <style>
         /* Estilos básicos */
@@ -18,26 +19,132 @@
         header {
             background-color: #f4f4f4;
             padding: 1rem;
+            border-bottom: 1px solid #ddd;
         }
         
         nav ul {
             list-style: none;
             padding: 0;
             display: flex;
+            justify-content: space-between;
+            margin: 0;
+        }
+
+        .nav-left, .nav-right {
+            display: flex;
             gap: 1rem;
+            align-items: center;
         }
         
         nav a {
             text-decoration: none;
             color: #333;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+
+        nav a:hover {
+            background-color: #e0e0e0;
+        }
+
+        nav a.active {
+            background-color: #ddd;
+        }
+        
+        .user-email {
+            margin-right: 1rem;
+            color: #666;
         }
         
         main {
             padding: 2rem;
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
         }
+
+        /* Split container */
+        .split-container {
+            display: flex;
+            gap: 1rem;
+            position: relative;
+            margin: 1rem 0;
+            min-height: calc(100vh - 250px);
+        }
+
+        .calendar-section {
+            flex: 1;
+            min-width: 300px;
+            background: #fff;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            padding: 1rem;
+        }
+
+        .tasks-section {
+            width: 300px;
+            background: #fff;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            padding: 1rem;
+        }
+
+        .resizer {
+            width: 5px;
+            background: #ddd;
+            cursor: col-resize;
+            transition: background 0.3s;
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            right: 300px;
+        }
+
+        .resizer:hover,
+        .resizer.dragging {
+            background: #999;
+        }
+
+        /* Estilos das tarefas */
+        .tasks-header {
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #eee;
+        }
+
+        .task-list {
+            max-height: calc(100vh - 400px);
+            overflow-y: auto;
+        }
+
+        .task-item {
+            padding: 0.75rem;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .task-item:last-child {
+            border-bottom: none;
+        }
+
+        .task-complete-btn {
+            padding: 0.25rem 0.5rem;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        .task-complete-btn.completed {
+            background: #9E9E9E;
+            cursor: default;
+        }
         
+        /* Mensagens */
         .messages {
             padding: 1rem;
             margin-bottom: 1rem;
@@ -61,9 +168,39 @@
             text-align: center;
             padding: 1rem;
             background-color: #f4f4f4;
+            border-top: 1px solid #ddd;
             position: fixed;
             bottom: 0;
             width: 100%;
+        }
+
+        /* Responsividade */
+        @media (max-width: 768px) {
+            nav ul {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+
+            .nav-left, .nav-right {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .split-container {
+                flex-direction: column;
+            }
+
+            .tasks-section {
+                width: 100%;
+            }
+
+            .resizer {
+                display: none;
+            }
+
+            main {
+                padding: 1rem;
+            }
         }
     </style>
 </head>
@@ -71,16 +208,32 @@
     <header>
         <nav>
             <ul>
-                {% if user.is_authenticated %}
-                    <li><a href="{% url 'dashboard' %}">Dashboard</a></li>
-                    <li><a href="{% url 'user_logout' %}">Sair</a></li>
-                {% else %}
-                    <li><a href="{% url 'user_login' %}">Login</a></li>
-                    <li><a href="{% url 'register' %}">Registrar</a></li>
-                {% endif %}
+                <div class="nav-left">
+                    {% if user.is_authenticated %}
+                        <li><a href="{% url 'home' %}" class="{% if request.resolver_match.url_name == 'home' %}active{% endif %}">
+                            <i class="fas fa-calendar"></i> Calendário
+                        </a></li>
+                        <li><a href="{% url 'dashboard_metrics' %}" class="{% if request.resolver_match.url_name == 'dashboard_metrics' %}active{% endif %}">
+                            <i class="fas fa-chart-line"></i> Dashboard
+                        </a></li>
+                        <li><a href="{% url 'challenge_list' %}" class="{% if 'challenge' in request.resolver_match.url_name %}active{% endif %}">
+                            <i class="fas fa-trophy"></i> Desafios
+                        </a></li>
+                    {% endif %}
+                </div>
+                <div class="nav-right">
+                    {% if user.is_authenticated %}
+                        <span class="user-email"><i class="fas fa-user"></i> {{ user.email }}</span>
+                        <li><a href="{% url 'user_logout' %}"><i class="fas fa-sign-out-alt"></i> Sair</a></li>
+                    {% else %}
+                        <li><a href="{% url 'user_login' %}">Login</a></li>
+                        <li><a href="{% url 'register' %}">Registrar</a></li>
+                    {% endif %}
+                </div>
             </ul>
         </nav>
     </header>
+
     <main>
         {% if messages %}
         <div class="messages">
@@ -92,11 +245,132 @@
         </div>
         {% endif %}
         
-        {% block content %}
-        {% endblock %}
+        <div class="split-container">
+            <div class="calendar-section">
+                {% block content %}
+                {% endblock %}
+            </div>
+            
+            <div class="resizer" id="dragMe"></div>
+            
+            <div class="tasks-section">
+                <div class="tasks-header">
+                    <h3>Tarefas do Dia <span id="selectedDate"></span></h3>
+                </div>
+                <div id="dayTasks" class="task-list">
+                    <!-- As tarefas serão carregadas aqui -->
+                </div>
+            </div>
+        </div>
     </main>
+
     <footer>
         <p>© 2024 Calendário Minimalista</p>
     </footer>
+
+    <script>
+        // Funcionalidade de redimensionamento
+        const resizer = document.getElementById('dragMe');
+        const leftSide = resizer.previousElementSibling;
+        const rightSide = resizer.nextElementSibling;
+        
+        let x = 0;
+        let leftWidth = 0;
+        
+        const mouseDownHandler = function(e) {
+            x = e.clientX;
+            leftWidth = leftSide.getBoundingClientRect().width;
+            
+            document.addEventListener('mousemove', mouseMoveHandler);
+            document.addEventListener('mouseup', mouseUpHandler);
+            
+            resizer.classList.add('dragging');
+        };
+        
+        const mouseMoveHandler = function(e) {
+            const dx = e.clientX - x;
+            const newLeftWidth = leftWidth + dx;
+            const containerWidth = resizer.parentNode.getBoundingClientRect().width;
+            
+            if (newLeftWidth > 300 && newLeftWidth < (containerWidth - 300)) {
+                leftSide.style.flex = '0 0 ' + newLeftWidth + 'px';
+                resizer.style.right = (containerWidth - newLeftWidth) + 'px';
+            }
+        };
+        
+        const mouseUpHandler = function() {
+            document.removeEventListener('mousemove', mouseMoveHandler);
+            document.removeEventListener('mouseup', mouseUpHandler);
+            resizer.classList.remove('dragging');
+        };
+        
+        resizer.addEventListener('mousedown', mouseDownHandler);
+
+        // Gerenciamento de tarefas
+        let selectedDate = new Date().toISOString().split('T')[0];
+
+        function updateSelectedDate(date) {
+            selectedDate = date;
+            document.getElementById('selectedDate').textContent = new Date(date).toLocaleDateString();
+            loadTasks(date);
+        }
+
+        function loadTasks(date) {
+            fetch(`/tasks/day/${date}/`)
+                .then(response => response.json())
+                .then(data => {
+                    const tasksList = document.getElementById('dayTasks');
+                    tasksList.innerHTML = '';
+                    
+                    data.tasks.forEach(task => {
+                        const taskElement = document.createElement('div');
+                        taskElement.className = 'task-item';
+                        taskElement.innerHTML = `
+                            <span>${task.description}</span>
+                            <button onclick="completeTask(${task.id})" class="task-complete-btn ${task.is_done ? 'completed' : ''}">
+                                ${task.is_done ? 'Completada' : 'Completar'}
+                            </button>
+                        `;
+                        tasksList.appendChild(taskElement);
+                    });
+                });
+        }
+
+        function completeTask(taskId) {
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            
+            fetch(`/tasks/${taskId}/complete/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    loadTasks(selectedDate);
+                }
+            });
+        }
+
+        // Inicializar com a data atual
+        updateSelectedDate(selectedDate);
+
+        // Event listeners para dias do calendário
+        document.querySelectorAll('.calendar-day').forEach(day => {
+            day.addEventListener('click', function() {
+                const date = this.dataset.date;
+                updateSelectedDate(date);
+            });
+        });
+
+        // Fechar mensagens após 5 segundos
+        document.querySelectorAll('.messages .success, .messages .error').forEach(message => {
+            setTimeout(() => {
+                message.style.opacity = '0';
+                setTimeout(() => message.remove(), 300);
+            }, 5000);
+        });
+    </script>
 </body>
 </html>

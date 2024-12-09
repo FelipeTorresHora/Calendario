@@ -63,3 +63,39 @@ class Reminder(models.Model):
 
     def __str__(self):
         return self.title
+
+class Challenge(models.Model):
+    STATUS_CHOICES = [
+        ('active', 'Em Andamento'),
+        ('completed', 'Concluído'),
+    ]
+
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='challenges')
+    title = models.CharField(max_length=200)
+    start_date = models.DateField()
+    end_date = models.DateField()
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='active')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.title
+
+    def get_completion_rate(self):
+        total_tasks = self.challenge_tasks.count() * self.get_total_days()
+        completed_tasks = Task.objects.filter(
+            challenge_task__challenge=self,
+            is_done=True
+        ).count()
+        
+        return (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0
+
+    def get_total_days(self):
+        return (self.end_date - self.start_date).days + 1
+
+class ChallengeTask(models.Model):
+    challenge = models.ForeignKey(Challenge, on_delete=models.CASCADE, related_name='challenge_tasks')
+    description = models.CharField(max_length=200)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.challenge.title} - {self.description}"

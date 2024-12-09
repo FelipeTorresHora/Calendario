@@ -5,10 +5,11 @@ from django.contrib import messages
 from django.http import JsonResponse
 from django.core.serializers.json import DjangoJSONEncoder
 import json
-from .models import Task, Reminder
-from .forms import TaskForm, ReminderForm, CustomUserCreationForm
+from .models import Task, Reminder, Challenge, ChallengeTask
+from .forms import TaskForm, ReminderForm, CustomUserCreationForm, ChallengeForm, ChallengeTaskForm, ChallengeTaskFormSet
 from datetime import datetime, timedelta
 from django.utils.dateparse import parse_date
+from django.views.decorators.http import require_http_methods
 
 
 def home(request):
@@ -70,6 +71,17 @@ def dashboard(request):
     }
     
     return render(request, 'calendario/dashboard.html', context)
+
+@login_required
+def get_day_tasks(request, date):
+    tasks = Task.objects.filter(
+        user=request.user,
+        date=date
+    ).order_by('is_done', 'date')
+    
+    return JsonResponse({
+        'tasks': list(tasks.values())
+    })
 
 @login_required
 def task_create(request):
@@ -147,6 +159,28 @@ def task_create(request):
     return render(request, 'calendario/task_form.html', {'form': TaskForm()})
 
 @login_required
+def get_day_tasks(request, date):
+    tasks = Task.objects.filter(
+        user=request.user,
+        date=date
+    ).order_by('is_done', '-id')
+    
+    return JsonResponse({
+        'tasks': list(tasks.values())
+    })
+
+@login_required
+@require_http_methods(['POST'])
+def complete_task(request, task_id):
+    task = get_object_or_404(Task, id=task_id, user=request.user)
+    task.is_done = True
+    task.save()
+    
+    return JsonResponse({
+        'success': True
+    })
+
+@login_required
 def task_update(request, pk):
     task = get_object_or_404(Task, pk=pk, user=request.user)
     if request.method == 'POST':
@@ -199,3 +233,167 @@ def reminder_delete(request, pk):
     reminder.delete()
     messages.success(request, 'Lembrete excluído com sucesso!')
     return redirect('dashboard')
+
+@login_required
+def dashboard_metrics(request):
+    # Obter todos os desafios do usuário
+    challenges = Challenge.objects.filter(user=request.user)
+    
+    # Calcular métricas para tarefas
+    total_tasks = Task.objects.filter(user=request.user).count()
+    completed_tasks = Task.objects.filter(user=request.user, is_done=True).count()
+    completion_rate = (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0
+    
+    # Métricas de desafios
+    active_challenges = challenges.filter(status='active').count()
+    completed_challenges = challenges.filter(status='completed').count()
+    
+    # Métricas por período (últimos 30 dias)
+    thirty_days_ago = datetime.now().date() - timedelta(days=30)
+    tasks_last_30_days = Task.objects.filter(
+        user=request.user,
+        date__gte=thirty_days_ago
+    )
+    
+    # Agrupamento de conclusão por dia
+    completion_by_day = {}
+    for task in tasks_last_30_days:
+        day = task.date.strftime('%Y-%m-%d')
+        if day not in completion_by_day:
+            completion_by_day[day] = {'total': 0, 'completed': 0}
+        completion_by_day[day]['total'] += 1
+        if task.is_done:
+            completion_by_day[day]['completed'] += 1
+    
+    # Métricas de desafios ativos
+    active_challenges_data = []
+    for challenge in challenges.filter(status='active'):
+        active_challenges_data.append({
+            'title': challenge.title,
+            'completion_rate': challenge.get_completion_rate(),
+            'days_remaining': (challenge.end_date - datetime.now().date()).days
+        })
+
+    context = {
+        'total_tasks': total_tasks,
+        'completed_tasks': completed_tasks,
+        'completion_rate': round(completion_rate, 2),
+        'active_challenges': active_challenges,
+        'completed_challenges': completed_challenges,
+        'completion_by_day': json.dumps(completion_by_day),
+        'active_challenges_data': active_challenges_data
+    }
+    
+    return render(request, 'calendario/dashboard_metrics.html', context)
+
+@login_required
+def challenge_list(request):
+    active_challenges = Challenge.objects.filter(
+        user=request.user,
+        status='active'
+    ).order_by('start_date')
+    
+    completed_challenges = Challenge.objects.filter(
+        user=request.user,
+        status='completed'
+    ).order_by('-end_date')
+    
+    context = {
+        'active_challenges': active_challenges,
+        'completed_challenges': completed_challenges
+    }
+    return render(request, 'calendario/challenge_list.html', context)
+
+@login_required
+def challenge_create(request):
+    if request.method == 'POST':
+        challenge_form = ChallengeForm(request.POST)
+        task_formset = ChallengeTaskFormSet(request.POST, prefix='tasks', queryset=ChallengeTask.objects.none())
+        
+        if challenge_form.is_valid() and task_formset.is_valid():
+            challenge = challenge_form.save(commit=False)
+            challenge.user = request.user
+            challenge.save()
+            
+            # Salvar as tarefas do desafio
+            tasks = task_formset.save(commit=False)
+            for task in tasks:
+                task.challenge = challenge
+                task.save()
+            
+            # Criar tarefas diárias para todo o período do desafio
+            current_date = challenge.start_date
+            while current_date <= challenge.end_date:
+                for challenge_task in challenge.challenge_tasks.all():
+                    Task.objects.create(
+                        user=request.user,
+                        description=challenge_task.description,
+                        date=current_date,
+                        challenge_task=challenge_task
+                    )
+                current_date += timedelta(days=1)
+            
+            messages.success(request, 'Desafio criado com sucesso!')
+            return redirect('challenge_list')
+        else:
+            messages.error(request, 'Por favor, corrija os erros no formulário.')
+    else:
+        challenge_form = ChallengeForm()
+        task_formset = ChallengeTaskFormSet(prefix='tasks', queryset=ChallengeTask.objects.none())
+    
+    return render(request, 'calendario/challenge_form.html', {
+        'form': challenge_form,
+        'task_formset': task_formset,
+        'is_edit': False
+    })
+
+@login_required
+def challenge_edit(request, pk):
+    challenge = get_object_or_404(Challenge, pk=pk, user=request.user)
+    
+    if challenge.status != 'active':
+        messages.error(request, 'Não é possível editar um desafio já iniciado.')
+        return redirect('challenge_list')
+    
+    if request.method == 'POST':
+        challenge_form = ChallengeForm(request.POST, instance=challenge)
+        task_formset = ChallengeTaskFormSet(
+            request.POST,
+            prefix='tasks',
+            queryset=challenge.challenge_tasks.all()
+        )
+        
+        if challenge_form.is_valid() and task_formset.is_valid():
+            challenge_form.save()
+            tasks = task_formset.save(commit=False)
+            
+            # Lidar com exclusões
+            for obj in task_formset.deleted_objects:
+                obj.delete()
+            
+            # Salvar tarefas novas/modificadas
+            for task in tasks:
+                task.challenge = challenge
+                task.save()
+            
+            messages.success(request, 'Desafio atualizado com sucesso!')
+            return redirect('challenge_list')
+    else:
+        challenge_form = ChallengeForm(instance=challenge)
+        task_formset = ChallengeTaskFormSet(
+            prefix='tasks',
+            queryset=challenge.challenge_tasks.all()
+        )
+    
+    return render(request, 'calendario/challenge_form.html', {
+        'form': challenge_form,
+        'task_formset': task_formset,
+        'is_edit': True
+    })
+
+@login_required
+def challenge_delete(request, pk):
+    challenge = get_object_or_404(Challenge, pk=pk, user=request.user)
+    challenge.delete()
+    messages.success(request, 'Desafio excluído com sucesso!')
+    return redirect('challenge_list')
