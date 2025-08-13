@@ -1,0 +1,6 @@
+dev.txt
+venv/
+__pycache__/
+.env
+.env.example
+db.sqlite3
