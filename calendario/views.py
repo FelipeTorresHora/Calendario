@@ -8,8 +8,8 @@ from django.core.cache import cache
 from django.views.decorators.cache import cache_page
 from django.conf import settings
 import json
-from .models import Task, Reminder, Challenge, ChallengeTask
-from .forms import TaskForm, ReminderForm, CustomUserCreationForm, ChallengeForm, ChallengeTaskForm, ChallengeTaskFormSet
+from .models import Task, Reminder, Objective
+from .forms import TaskForm, ReminderForm, CustomUserCreationForm, ObjectiveForm, QuickTaskForm
 from .cache_utils import CacheManager
 from datetime import datetime, timedelta
 from django.utils.dateparse import parse_date
@@ -55,161 +55,240 @@ def user_logout(request):
 
 @login_required
 def dashboard(request):
-    def get_dashboard_data():
-        # Buscar apenas os lembretes para exibir na lateral
-        reminders = Reminder.objects.filter(user=request.user).order_by('date')
-        
-        # Buscar todas as tarefas para o calendário
-        tasks = Task.objects.filter(user=request.user).order_by('date')
-        
-        # Preparar dados das tarefas para o calendário
-        tasks_data = []
-        for task in tasks:
-            tasks_data.append({
-                'id': task.id,
-                'description': task.description,
-                'date': task.date.strftime('%Y-%m-%d'),
-                'is_done': task.is_done
-            })
-        
-        return {
-            'tasks': tasks,
-            'reminders': reminders,
-            'tasks_json': json.dumps(tasks_data, cls=DjangoJSONEncoder)
-        }
+    """Cave Mode Dashboard - focused on objectives and personal tracking"""
+    from datetime import date, timedelta
+    from collections import defaultdict
     
-    cache_key = CacheManager.DASHBOARD_DATA.format(user_id=request.user.id)
-    context = CacheManager.get_or_set(cache_key, get_dashboard_data, timeout=300)
+    # Buscar objetivos ativos
+    objectives = Objective.objects.filter(user=request.user, is_active=True).order_by('created_at')
     
-    return render(request, 'calendario/dashboard.html', context)
-
-@login_required
-def get_day_tasks(request, date):
-    tasks = Task.objects.filter(
+    # Calcular estatísticas
+    total_tasks = Task.objects.filter(user=request.user).count()
+    completed_tasks = Task.objects.filter(user=request.user, is_done=True).count()
+    completion_rate = (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0
+    
+    # Contar tarefas por tipo
+    objective_tasks_count = Task.objects.filter(user=request.user, objective__isnull=False).count()
+    additional_tasks_count = Task.objects.filter(user=request.user, objective__isnull=True).count()
+    
+    # Calcular melhor sequência (streak)
+    best_streak = 0
+    if objectives.exists():
+        best_streak = max([obj.get_streak_count() for obj in objectives])
+    
+    # Gerar dados do heatmap (últimos 12 meses = 365 dias)
+    end_date = date.today()
+    start_date = end_date - timedelta(days=365)
+    
+    # Dados gerais do heatmap (todas as tarefas concluídas)
+    heatmap_data = defaultdict(int)
+    completed_tasks_query = Task.objects.filter(
         user=request.user,
-        date=date
-    ).order_by('is_done', 'date')
+        is_done=True,
+        date__gte=start_date,
+        date__lte=end_date
+    )
     
-    return JsonResponse({
-        'tasks': list(tasks.values())
-    })
+    for task in completed_tasks_query:
+        date_str = task.date.strftime('%Y-%m-%d')
+        heatmap_data[date_str] += 1
+    
+    # Dados do heatmap por objetivo
+    objectives_heatmap_data = {}
+    for objective in objectives:
+        obj_data = defaultdict(int)
+        obj_tasks = completed_tasks_query.filter(objective=objective)
+        
+        for task in obj_tasks:
+            date_str = task.date.strftime('%Y-%m-%d')
+            obj_data[date_str] += 1
+        
+        objectives_heatmap_data[str(objective.id)] = dict(obj_data)
+    
+    context = {
+        'objectives': objectives,
+        'objectives_count': objectives.count(),
+        'completion_rate': round(completion_rate, 1),
+        'objective_tasks_count': objective_tasks_count,
+        'additional_tasks_count': additional_tasks_count,
+        'best_streak': best_streak,
+        'heatmap_data': json.dumps(dict(heatmap_data)),
+        'objectives_heatmap_data': json.dumps(objectives_heatmap_data),
+    }
+    
+    return render(request, 'calendario/cave_dashboard.html', context)
+
 
 @login_required
 def task_create(request):
+    """Create task with Cave Mode objective linking"""
     if request.method == 'POST':
-        description = request.POST.get('description')
-        date_str = request.POST.get('date')  # Data única para tarefa sem recorrência
-        recurrence_type = request.POST.get('recurrence_type', 'none')
+        form = QuickTaskForm(request.POST, user=request.user)
         
-        try:
-            # Processar data inicial
-            if recurrence_type == 'none':
-                if not date_str:
-                    messages.error(request, 'Data é obrigatória')
-                    return redirect('dashboard')
-                start_date = datetime.strptime(date_str, '%Y-%m-%d').date()
-            else:
-                start_date_str = request.POST.get('start_date')
-                if not start_date_str:
-                    messages.error(request, 'Data de início é obrigatória')
-                    return redirect('dashboard')
-                start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
-
-            # Processar data final (opcional)
-            end_date = None
-            end_date_str = request.POST.get('end_date')
-            if end_date_str:
-                end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
-
-            # Processar dias da semana para recorrência semanal
-            weekdays = request.POST.getlist('weekdays')
-
-            if recurrence_type == 'none':
-                # Criar uma única tarefa
-                Task.objects.create(
-                    user=request.user,
-                    description=description,
-                    date=start_date,
-                )
-            else:
-                # Criar tarefas recorrentes
-                current_date = start_date
-                while current_date <= (end_date or start_date):
-                    create_task = False
-
-                    if recurrence_type == 'daily':
-                        create_task = True
-                    elif recurrence_type == 'weekly':
-                        create_task = str(current_date.weekday()) in weekdays
-                    elif recurrence_type == 'monthly':
-                        create_task = True
-
-                    if create_task:
-                        Task.objects.create(
-                            user=request.user,
-                            description=description,
-                            date=current_date,
-                        )
-
-                    if recurrence_type == 'monthly':
-                        # Avançar para o mesmo dia do próximo mês
-                        if current_date.month == 12:
-                            current_date = current_date.replace(year=current_date.year + 1, month=1)
-                        else:
-                            current_date = current_date.replace(month=current_date.month + 1)
-                    else:
-                        current_date += timedelta(days=1)
-
-            messages.success(request, 'Tarefa(s) criada(s) com sucesso!')
-            # Invalidate cache after creating tasks
+        if form.is_valid():
+            task = form.save(commit=False)
+            task.user = request.user
+            
+            # Set task type flag
+            task.is_objective_task = bool(task.objective)
+            task.save()
+            
+            messages.success(request, 'Tarefa criada com sucesso!')
             invalidate_user_cache(request.user.id)
             return redirect('dashboard')
+        else:
+            messages.error(request, 'Por favor, corrija os erros no formulário.')
+    else:
+        form = QuickTaskForm(user=request.user)
 
-        except ValueError as e:
-            messages.error(request, f'Erro ao processar as datas: {str(e)}')
-            return redirect('dashboard')
-
-    return render(request, 'calendario/task_form.html', {'form': TaskForm()})
+    return render(request, 'calendario/task_form.html', {'form': form})
 
 @login_required
 def get_day_tasks(request, date):
+    """Get tasks for a specific date with objective information and daily objectives"""
+    from datetime import datetime
+    
+    # Get regular tasks for the date
     tasks = Task.objects.filter(
         user=request.user,
         date=date
-    ).order_by('is_done', '-id')
+    ).select_related('objective').order_by('is_done', '-id')
+    
+    # Get active objectives
+    objectives = Objective.objects.filter(
+        user=request.user, 
+        is_active=True
+    ).order_by('created_at')
+    
+    tasks_data = []
+    
+    # Add regular tasks
+    for task in tasks:
+        task_data = {
+            'id': task.id,
+            'type': 'task',
+            'description': task.description,
+            'date': task.date.strftime('%Y-%m-%d'),
+            'is_done': task.is_done,
+            'objective_id': task.objective.id if task.objective else None,
+            'objective_title': task.objective.title if task.objective else None,
+            'is_objective_task': task.is_objective_task
+        }
+        tasks_data.append(task_data)
+    
+    # Add daily objectives as checkable items
+    date_obj = datetime.strptime(date, '%Y-%m-%d').date()
+    for objective in objectives:
+        # Check if there's already a task for this objective today
+        existing_task = tasks.filter(objective=objective).first()
+        
+        if not existing_task:
+            # Create a virtual daily objective entry
+            objective_data = {
+                'id': f'objective-{objective.id}',
+                'type': 'daily_objective',
+                'description': f'{objective.title}',
+                'date': date,
+                'is_done': False,
+                'objective_id': objective.id,
+                'objective_title': objective.title,
+                'is_objective_task': True,
+                'is_daily_check': True
+            }
+            tasks_data.append(objective_data)
+        else:
+            # Mark existing task as daily objective
+            for task_data in tasks_data:
+                if task_data['id'] == existing_task.id:
+                    task_data['is_daily_check'] = True
+                    break
+    
+    # Sort: daily objectives first, then regular tasks
+    tasks_data.sort(key=lambda x: (x.get('type') != 'daily_objective', x.get('is_done', False)))
     
     return JsonResponse({
-        'tasks': list(tasks.values())
+        'tasks': tasks_data
     })
 
 @login_required
 @require_http_methods(['POST'])
 def complete_task(request, task_id):
+    """Toggle task completion status"""
     task = get_object_or_404(Task, id=task_id, user=request.user)
-    task.is_done = True
+    task.is_done = not task.is_done  # Toggle instead of just marking as done
     task.save()
     
     # Invalidate cache after completing task
     invalidate_user_cache(request.user.id)
     
     return JsonResponse({
-        'success': True
+        'success': True,
+        'is_done': task.is_done
+    })
+
+@login_required
+def dashboard_stats(request):
+    """API endpoint to get updated dashboard statistics"""
+    from datetime import date, timedelta
+    from collections import defaultdict
+    
+    # Buscar objetivos ativos
+    objectives = Objective.objects.filter(user=request.user, is_active=True)
+    
+    # Calcular estatísticas
+    total_tasks = Task.objects.filter(user=request.user).count()
+    completed_tasks = Task.objects.filter(user=request.user, is_done=True).count()
+    completion_rate = (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0
+    
+    # Contar tarefas por tipo
+    additional_tasks_count = Task.objects.filter(user=request.user, objective__isnull=True).count()
+    
+    # Calcular melhor sequência (streak)
+    best_streak = 0
+    if objectives.exists():
+        best_streak = max([obj.get_streak_count() for obj in objectives])
+    
+    # Gerar dados do heatmap atualizados
+    end_date = date.today()
+    start_date = end_date - timedelta(days=365)
+    
+    heatmap_data = defaultdict(int)
+    completed_tasks_query = Task.objects.filter(
+        user=request.user,
+        is_done=True,
+        date__gte=start_date,
+        date__lte=end_date
+    )
+    
+    for task in completed_tasks_query:
+        date_str = task.date.strftime('%Y-%m-%d')
+        heatmap_data[date_str] += 1
+    
+    return JsonResponse({
+        'success': True,
+        'completion_rate': round(completion_rate, 1),
+        'additional_tasks_count': additional_tasks_count,
+        'best_streak': best_streak,
+        'heatmap_data': dict(heatmap_data),
     })
 
 @login_required
 def task_update(request, pk):
+    """Update task with Cave Mode objective linking"""
     task = get_object_or_404(Task, pk=pk, user=request.user)
     if request.method == 'POST':
-        form = TaskForm(request.POST, instance=task)
+        form = TaskForm(request.POST, instance=task, user=request.user)
         if form.is_valid():
-            form.save()
+            task = form.save(commit=False)
+            task.is_objective_task = bool(task.objective)
+            task.save()
             # Invalidate cache after updating task
             invalidate_user_cache(request.user.id)
             messages.success(request, 'Tarefa atualizada com sucesso!')
             return redirect('dashboard')
     else:
-        form = TaskForm(instance=task)
-    return render(request, 'calendario/task_form.html', {'form': form})
+        form = TaskForm(instance=task, user=request.user)
+    return render(request, 'calendario/task_form.html', {'form': form, 'task': task})
 
 @login_required
 def task_delete(request, pk):
@@ -255,175 +334,151 @@ def reminder_delete(request, pk):
     return redirect('dashboard')
 
 @login_required
-def dashboard_metrics(request):
+def cave_metrics(request):
+    """Cave Mode metrics with heatmap visualization"""
     # Cache key specific to user
-    cache_key = f'dashboard_metrics_{request.user.id}'
+    cache_key = f'cave_metrics_{request.user.id}'
     cached_data = cache.get(cache_key)
     
     if cached_data:
         context = cached_data
     else:
-        # Obter todos os desafios do usuário
-        challenges = Challenge.objects.filter(user=request.user)
+        # Obter objetivos do usuário
+        objectives = Objective.objects.filter(user=request.user, is_active=True)
         
         # Calcular métricas para tarefas
         total_tasks = Task.objects.filter(user=request.user).count()
         completed_tasks = Task.objects.filter(user=request.user, is_done=True).count()
         completion_rate = (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0
         
-        # Métricas de desafios
-        active_challenges = challenges.filter(status='active').count()
-        completed_challenges = challenges.filter(status='completed').count()
+        # Métricas de objetivos
+        objective_tasks = Task.objects.filter(user=request.user, objective__isnull=False)
+        additional_tasks = Task.objects.filter(user=request.user, objective__isnull=True)
         
-        # Métricas por período (últimos 30 dias)
-        thirty_days_ago = datetime.now().date() - timedelta(days=30)
-        tasks_last_30_days = Task.objects.filter(
+        # Métricas por período (últimos 365 dias para heatmap)
+        year_ago = datetime.now().date() - timedelta(days=365)
+        tasks_last_year = Task.objects.filter(
             user=request.user,
-            date__gte=thirty_days_ago
+            date__gte=year_ago
         )
         
-        # Agrupamento de conclusão por dia
-        completion_by_day = {}
-        for task in tasks_last_30_days:
-            day = task.date.strftime('%Y-%m-%d')
-            if day not in completion_by_day:
-                completion_by_day[day] = {'total': 0, 'completed': 0}
-            completion_by_day[day]['total'] += 1
-            if task.is_done:
-                completion_by_day[day]['completed'] += 1
+        # Dados para heatmap (estilo GitHub)
+        heatmap_data = {}
+        current_date = year_ago
+        end_date = datetime.now().date()
         
-        # Métricas de desafios ativos
-        active_challenges_data = []
-        for challenge in challenges.filter(status='active'):
-            active_challenges_data.append({
-                'title': challenge.title,
-                'completion_rate': challenge.get_completion_rate(),
-                'days_remaining': (challenge.end_date - datetime.now().date()).days
+        while current_date <= end_date:
+            date_str = current_date.strftime('%Y-%m-%d')
+            day_tasks = tasks_last_year.filter(date=current_date)
+            completed_count = day_tasks.filter(is_done=True).count()
+            heatmap_data[date_str] = completed_count
+            current_date += timedelta(days=1)
+        
+        # Métricas de streak para cada objetivo
+        objective_streaks = []
+        for obj in objectives:
+            streak = obj.get_streak_count()
+            objective_streaks.append({
+                'title': obj.title,
+                'streak': streak,
+                'heatmap_data': obj.get_completion_data_last_year()
             })
 
         context = {
             'total_tasks': total_tasks,
             'completed_tasks': completed_tasks,
             'completion_rate': round(completion_rate, 2),
-            'active_challenges': active_challenges,
-            'completed_challenges': completed_challenges,
-            'completion_by_day': json.dumps(completion_by_day),
-            'active_challenges_data': active_challenges_data
+            'objectives_count': objectives.count(),
+            'objective_tasks_count': objective_tasks.count(),
+            'additional_tasks_count': additional_tasks.count(),
+            'heatmap_data': json.dumps(heatmap_data),
+            'objective_streaks': objective_streaks,
+            'objectives': objectives
         }
         
         # Cache for 10 minutes
         cache.set(cache_key, context, 600)
     
-    return render(request, 'calendario/dashboard_metrics.html', context)
+    return render(request, 'calendario/cave_metrics.html', context)
 
 @login_required
-def challenge_list(request):
-    active_challenges = Challenge.objects.filter(
+def objective_list(request):
+    """Cave Mode objectives management"""
+    active_objectives = Objective.objects.filter(
         user=request.user,
-        status='active'
-    ).order_by('start_date')
+        is_active=True
+    ).order_by('created_at')
     
-    completed_challenges = Challenge.objects.filter(
+    inactive_objectives = Objective.objects.filter(
         user=request.user,
-        status='completed'
-    ).order_by('-end_date')
+        is_active=False
+    ).order_by('-created_at')
     
     context = {
-        'active_challenges': active_challenges,
-        'completed_challenges': completed_challenges
+        'active_objectives': active_objectives,
+        'inactive_objectives': inactive_objectives
     }
-    return render(request, 'calendario/challenge_list.html', context)
+    return render(request, 'calendario/objective_list.html', context)
 
 @login_required
-def challenge_create(request):
+def objective_create(request):
+    """Create new Cave Mode objective"""
     if request.method == 'POST':
-        challenge_form = ChallengeForm(request.POST)
-        task_formset = ChallengeTaskFormSet(request.POST, prefix='tasks', queryset=ChallengeTask.objects.none())
+        form = ObjectiveForm(request.POST)
         
-        if challenge_form.is_valid() and task_formset.is_valid():
-            challenge = challenge_form.save(commit=False)
-            challenge.user = request.user
-            challenge.save()
+        if form.is_valid():
+            objective = form.save(commit=False)
+            objective.user = request.user
+            objective.save()
             
-            # Salvar as tarefas do desafio
-            tasks = task_formset.save(commit=False)
-            for task in tasks:
-                task.challenge = challenge
-                task.save()
-            
-            # Criar tarefas diárias para todo o período do desafio
-            current_date = challenge.start_date
-            while current_date <= challenge.end_date:
-                for challenge_task in challenge.challenge_tasks.all():
-                    Task.objects.create(
-                        user=request.user,
-                        description=challenge_task.description,
-                        date=current_date,
-                        challenge_task=challenge_task
-                    )
-                current_date += timedelta(days=1)
-            
-            messages.success(request, 'Desafio criado com sucesso!')
-            return redirect('challenge_list')
+            messages.success(request, 'Objetivo criado com sucesso!')
+            return redirect('objective_list')
         else:
             messages.error(request, 'Por favor, corrija os erros no formulário.')
     else:
-        challenge_form = ChallengeForm()
-        task_formset = ChallengeTaskFormSet(prefix='tasks', queryset=ChallengeTask.objects.none())
+        form = ObjectiveForm()
     
-    return render(request, 'calendario/challenge_form.html', {
-        'form': challenge_form,
-        'task_formset': task_formset,
+    return render(request, 'calendario/objective_form.html', {
+        'form': form,
         'is_edit': False
     })
 
 @login_required
-def challenge_edit(request, pk):
-    challenge = get_object_or_404(Challenge, pk=pk, user=request.user)
-    
-    if challenge.status != 'active':
-        messages.error(request, 'Não é possível editar um desafio já iniciado.')
-        return redirect('challenge_list')
+def objective_edit(request, pk):
+    """Edit Cave Mode objective"""
+    objective = get_object_or_404(Objective, pk=pk, user=request.user)
     
     if request.method == 'POST':
-        challenge_form = ChallengeForm(request.POST, instance=challenge)
-        task_formset = ChallengeTaskFormSet(
-            request.POST,
-            prefix='tasks',
-            queryset=challenge.challenge_tasks.all()
-        )
+        form = ObjectiveForm(request.POST, instance=objective)
         
-        if challenge_form.is_valid() and task_formset.is_valid():
-            challenge_form.save()
-            tasks = task_formset.save(commit=False)
-            
-            # Lidar com exclusões
-            for obj in task_formset.deleted_objects:
-                obj.delete()
-            
-            # Salvar tarefas novas/modificadas
-            for task in tasks:
-                task.challenge = challenge
-                task.save()
-            
-            messages.success(request, 'Desafio atualizado com sucesso!')
-            return redirect('challenge_list')
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Objetivo atualizado com sucesso!')
+            return redirect('objective_list')
     else:
-        challenge_form = ChallengeForm(instance=challenge)
-        task_formset = ChallengeTaskFormSet(
-            prefix='tasks',
-            queryset=challenge.challenge_tasks.all()
-        )
+        form = ObjectiveForm(instance=objective)
     
-    return render(request, 'calendario/challenge_form.html', {
-        'form': challenge_form,
-        'task_formset': task_formset,
-        'is_edit': True
+    return render(request, 'calendario/objective_form.html', {
+        'form': form,
+        'is_edit': True,
+        'objective': objective
     })
 
 @login_required
-def challenge_delete(request, pk):
-    challenge = get_object_or_404(Challenge, pk=pk, user=request.user)
-    challenge.delete()
-    messages.success(request, 'Desafio excluído com sucesso!')
-    return redirect('challenge_list')
+def objective_toggle(request, pk):
+    """Toggle objective active/inactive status"""
+    objective = get_object_or_404(Objective, pk=pk, user=request.user)
+    objective.is_active = not objective.is_active
+    objective.save()
+    
+    status = "ativado" if objective.is_active else "desativado"
+    messages.success(request, f'Objetivo {status} com sucesso!')
+    return redirect('objective_list')
+
+@login_required
+def objective_delete(request, pk):
+    """Delete Cave Mode objective"""
+    objective = get_object_or_404(Objective, pk=pk, user=request.user)
+    objective.delete()
+    messages.success(request, 'Objetivo excluído com sucesso!')
+    return redirect('objective_list')

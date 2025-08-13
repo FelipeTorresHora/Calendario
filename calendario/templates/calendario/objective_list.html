@@ -1,0 +1,438 @@
+{% extends 'calendario/base.html' %}
+{% load static %}
+
+{% block title %}Objetivos Cave Mode{% endblock %}
+
+{% block content %}
+<style>
+/* Inherit theme from base template - no body override needed */
+
+.objectives-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.page-header {
+    background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.page-title {
+    margin: 0;
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.btn-cave {
+    background: #238636;
+    color: white;
+    text-decoration: none;
+    padding: 12px 20px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    border: none;
+    cursor: pointer;
+    transition: background 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-cave:hover {
+    background: #2ea043;
+    color: white;
+}
+
+.objectives-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 24px;
+}
+
+.objectives-section {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.section-header {
+    padding: 20px;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-primary);
+}
+
+.section-title {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.objectives-list {
+    padding: 0;
+}
+
+.objective-card {
+    padding: 20px;
+    border-bottom: 1px solid var(--border-light);
+    transition: background 0.2s;
+}
+
+.objective-card:hover {
+    background: var(--bg-primary);
+}
+
+.objective-card:last-child {
+    border-bottom: none;
+}
+
+.objective-header {
+    display: flex;
+    justify-content: between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.objective-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+    flex: 1;
+}
+
+.objective-actions {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+    border-radius: 4px;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-edit {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+}
+
+.btn-edit:hover {
+    background: var(--border-color);
+    color: var(--text-primary);
+}
+
+.btn-toggle {
+    background: #fd7e14;
+    color: white;
+}
+
+.btn-toggle:hover {
+    background: #e85d04;
+    color: white;
+}
+
+.btn-toggle.inactive {
+    background: #238636;
+}
+
+.btn-toggle.inactive:hover {
+    background: #2ea043;
+}
+
+.btn-delete {
+    background: #da3633;
+    color: white;
+}
+
+.btn-delete:hover {
+    background: #b91c1c;
+    color: white;
+}
+
+.objective-description {
+    color: var(--text-secondary);
+    font-size: 14px;
+    line-height: 1.5;
+    margin-bottom: 12px;
+}
+
+.objective-stats {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.streak-badge {
+    background: #fd7e14;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.status-badge {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.status-active {
+    background: #238636;
+    color: white;
+}
+
+.status-inactive {
+    background: #6e7681;
+    color: white;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #8b949e;
+}
+
+.empty-icon {
+    font-size: 64px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+
+.breadcrumb {
+    margin-bottom: 20px;
+}
+
+.breadcrumb a {
+    color: #58a6ff;
+    text-decoration: none;
+    font-size: 14px;
+}
+
+.breadcrumb a:hover {
+    text-decoration: underline;
+}
+
+.breadcrumb span {
+    color: #8b949e;
+    margin: 0 8px;
+}
+
+@media (max-width: 768px) {
+    .page-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 16px;
+    }
+    
+    .objective-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .objective-actions {
+        align-self: stretch;
+        justify-content: space-between;
+    }
+    
+    .objective-stats {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+}
+</style>
+
+<div class="objectives-container">
+    <!-- Breadcrumb -->
+    <nav class="breadcrumb">
+        <a href="{% url 'dashboard' %}">🕳️ Cave Mode</a>
+        <span>/</span>
+        <span>Objetivos</span>
+    </nav>
+
+    <!-- Header -->
+    <div class="page-header">
+        <h1 class="page-title">🎯 Seus Objetivos</h1>
+        <a href="{% url 'objective_create' %}" class="btn-cave">
+            <span>+</span>
+            Novo Objetivo
+        </a>
+    </div>
+
+    <!-- Objectives Grid -->
+    <div class="objectives-grid">
+        <!-- Active Objectives -->
+        <div class="objectives-section">
+            <div class="section-header">
+                <h2 class="section-title">
+                    <span>✅</span>
+                    Objetivos Ativos
+                </h2>
+            </div>
+            <div class="objectives-list">
+                {% if active_objectives %}
+                    {% for objective in active_objectives %}
+                    <div class="objective-card">
+                        <div class="objective-header">
+                            <h3 class="objective-title">{{ objective.title }}</h3>
+                            <div class="objective-actions">
+                                <a href="{% url 'objective_edit' objective.id %}" class="btn-sm btn-edit">Editar</a>
+                                <a href="{% url 'objective_toggle' objective.id %}" class="btn-sm btn-toggle">Pausar</a>
+                                <a href="{% url 'objective_delete' objective.id %}" 
+                                   class="btn-sm btn-delete"
+                                   onclick="return confirm('Tem certeza que deseja excluir este objetivo? Todas as tarefas vinculadas serão desvinculadas.')">
+                                   Excluir
+                                </a>
+                            </div>
+                        </div>
+                        
+                        {% if objective.description %}
+                        <div class="objective-description">
+                            {{ objective.description }}
+                        </div>
+                        {% endif %}
+                        
+                        <div class="objective-stats">
+                            <div class="stat-item">
+                                <span class="streak-badge">
+                                    🔥 {{ objective.get_streak_count }} dias
+                                </span>
+                            </div>
+                            <div class="stat-item">
+                                <span>📅</span>
+                                Criado em {{ objective.created_at|date:"d/m/Y" }}
+                            </div>
+                            <div class="stat-item">
+                                <span>📋</span>
+                                {{ objective.tasks.count }} tarefas vinculadas
+                            </div>
+                            <span class="status-badge status-active">ATIVO</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">
+                        <div class="empty-icon">🎯</div>
+                        <h3 style="color: #f0f6fc; margin-bottom: 8px;">Nenhum objetivo ativo</h3>
+                        <p>Crie seu primeiro objetivo para começar a trackear seu progresso diário!</p>
+                        <a href="{% url 'objective_create' %}" class="btn-cave" style="margin-top: 16px;">Criar Primeiro Objetivo</a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Inactive Objectives -->
+        {% if inactive_objectives %}
+        <div class="objectives-section">
+            <div class="section-header">
+                <h2 class="section-title">
+                    <span>⏸️</span>
+                    Objetivos Pausados
+                </h2>
+            </div>
+            <div class="objectives-list">
+                {% for objective in inactive_objectives %}
+                <div class="objective-card" style="opacity: 0.7;">
+                    <div class="objective-header">
+                        <h3 class="objective-title">{{ objective.title }}</h3>
+                        <div class="objective-actions">
+                            <a href="{% url 'objective_edit' objective.id %}" class="btn-sm btn-edit">Editar</a>
+                            <a href="{% url 'objective_toggle' objective.id %}" class="btn-sm btn-toggle inactive">Reativar</a>
+                            <a href="{% url 'objective_delete' objective.id %}" 
+                               class="btn-sm btn-delete"
+                               onclick="return confirm('Tem certeza que deseja excluir este objetivo?')">
+                               Excluir
+                            </a>
+                        </div>
+                    </div>
+                    
+                    {% if objective.description %}
+                    <div class="objective-description">
+                        {{ objective.description }}
+                    </div>
+                    {% endif %}
+                    
+                    <div class="objective-stats">
+                        <div class="stat-item">
+                            <span>📅</span>
+                            Criado em {{ objective.created_at|date:"d/m/Y" }}
+                        </div>
+                        <div class="stat-item">
+                            <span>📋</span>
+                            {{ objective.tasks.count }} tarefas vinculadas
+                        </div>
+                        <span class="status-badge status-inactive">PAUSADO</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+// Add confirmation for destructive actions
+document.querySelectorAll('.btn-delete').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+        if (!confirm('Esta ação não pode ser desfeita. Continuar?')) {
+            e.preventDefault();
+        }
+    });
+});
+
+// Add loading states for toggle actions
+document.querySelectorAll('.btn-toggle').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const originalText = this.textContent;
+        this.textContent = 'Processando...';
+        this.style.opacity = '0.6';
+        this.style.pointerEvents = 'none';
+        
+        // Reset if page doesn't navigate away (fallback)
+        setTimeout(() => {
+            this.textContent = originalText;
+            this.style.opacity = '1';
+            this.style.pointerEvents = 'auto';
+        }, 5000);
+    });
+});
+</script>
+
+{% endblock %}

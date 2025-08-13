@@ -1,0 +1,389 @@
+{% extends 'calendario/base.html' %}
+{% load static %}
+
+{% block title %}Dashboard - Teste{% endblock %}
+
+{% block content %}
+<div style="padding: 20px;">
+    <!-- Dashboard Header -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; color: white;">
+        <div>
+            <h1 style="margin: 0; font-size: 28px;">Dashboard</h1>
+            <p style="margin: 5px 0 0 0; opacity: 0.9;">Bem-vindo, {{ user.first_name|default:user.email }}!</p>
+        </div>
+        <div style="text-align: right;">
+            <div style="font-size: 14px; opacity: 0.8;">Hoje</div>
+            <div style="font-size: 18px; font-weight: bold;" id="current-date"></div>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px;">
+        <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); text-align: center;">
+            <div style="font-size: 32px; font-weight: bold; color: #3b82f6;">{{ tasks|length }}</div>
+            <div style="color: #6b7280; margin-top: 5px;">Total de Tarefas</div>
+        </div>
+        <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); text-align: center;">
+            <div style="font-size: 32px; font-weight: bold; color: #10b981;">{{ tasks|length|add:"-"|add:tasks.0.is_done|default:0 }}</div>
+            <div style="color: #6b7280; margin-top: 5px;">Concluídas</div>
+        </div>
+        <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); text-align: center;">
+            <div style="font-size: 32px; font-weight: bold; color: #f59e0b;">{{ reminders|length }}</div>
+            <div style="color: #6b7280; margin-top: 5px;">Lembretes</div>
+        </div>
+        <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); text-align: center;">
+            <div style="font-size: 32px; font-weight: bold; color: #8b5cf6;">85%</div>
+            <div style="color: #6b7280; margin-top: 5px;">Produtividade</div>
+        </div>
+    </div>
+
+    {% if user.is_authenticated %}
+        <!-- Main Content Grid -->
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 30px; margin-bottom: 30px;">
+            <!-- Calendar Section -->
+            <div style="background: white; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); overflow: hidden;">
+                <div style="padding: 20px; border-bottom: 1px solid #e5e7eb;">
+                    <h3 style="margin: 0; color: #1f2937; display: flex; align-items: center; gap: 10px;">
+                        📅 Calendário Interativo
+                        <span style="background: #3b82f6; color: white; font-size: 12px; padding: 2px 8px; border-radius: 12px;">React</span>
+                    </h3>
+                </div>
+                <div 
+                    id="react-calendar" 
+                    data-tasks="{{ tasks_json|escapejs }}"
+                    data-user-id="{{ user.id }}"
+                    style="min-height: 500px;"
+                >
+                    <div class="calendar-loading" style="display: flex; align-items: center; justify-content: center; height: 500px; color: #666;">
+                        <div style="text-align: center;">
+                            <div style="font-size: 24px; margin-bottom: 10px;">⏳</div>
+                            <p>Carregando calendário React...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar -->
+            <div style="display: flex; flex-direction: column; gap: 20px;">
+                <!-- Tasks Section -->
+                <div style="background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); overflow: hidden;">
+                    <div style="padding: 16px; background: #f8fafc; border-bottom: 1px solid #e5e7eb;">
+                        <h4 style="margin: 0; color: #1f2937; display: flex; align-items: center; justify-content: space-between;">
+                            📝 Tarefas Recentes
+                            <a href="{% url 'task_create' %}" style="background: #3b82f6; color: white; text-decoration: none; padding: 4px 12px; border-radius: 6px; font-size: 12px;">+ Nova</a>
+                        </h4>
+                    </div>
+                    <div style="max-height: 300px; overflow-y: auto;">
+                        {% if tasks %}
+                            {% for task in tasks|slice:":5" %}
+                            <div style="padding: 12px 16px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 10px;">
+                                <input type="checkbox" {% if task.is_done %}checked{% endif %} 
+                                       onclick="toggleTask({{ task.id }})" 
+                                       style="cursor: pointer;">
+                                <div style="flex: 1;">
+                                    <div style="{% if task.is_done %}text-decoration: line-through; color: #9ca3af;{% endif %} font-weight: 500;">
+                                        {{ task.description|truncatechars:30 }}
+                                    </div>
+                                    <div style="font-size: 12px; color: #6b7280; margin-top: 2px;">
+                                        📅 {{ task.date }}
+                                    </div>
+                                </div>
+                                <div style="font-size: 12px; padding: 2px 8px; border-radius: 12px; 
+                                           background: {% if task.is_done %}#d1fae5; color: #065f46;{% else %}#fef3c7; color: #92400e;{% endif %}">
+                                    {% if task.is_done %}Concluída{% else %}Pendente{% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                            {% if tasks|length > 5 %}
+                                <div style="padding: 12px 16px; text-align: center; background: #f8fafc;">
+                                    <small style="color: #6b7280;">+ {{ tasks|length|add:"-5" }} tarefas mais...</small>
+                                </div>
+                            {% endif %}
+                        {% else %}
+                            <div style="padding: 20px; text-align: center; color: #6b7280;">
+                                <div style="font-size: 24px; margin-bottom: 10px;">📝</div>
+                                <p>Nenhuma tarefa ainda.</p>
+                                <a href="{% url 'task_create' %}" style="color: #3b82f6;">Criar primeira tarefa</a>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Reminders Section -->
+                <div style="background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); overflow: hidden;">
+                    <div style="padding: 16px; background: #f8fafc; border-bottom: 1px solid #e5e7eb;">
+                        <h4 style="margin: 0; color: #1f2937; display: flex; align-items: center; justify-content: space-between;">
+                            🔔 Lembretes
+                            <a href="{% url 'reminder_create' %}" style="background: #10b981; color: white; text-decoration: none; padding: 4px 12px; border-radius: 6px; font-size: 12px;">+ Novo</a>
+                        </h4>
+                    </div>
+                    <div style="max-height: 250px; overflow-y: auto;">
+                        {% if reminders %}
+                            {% for reminder in reminders|slice:":4" %}
+                            <div style="padding: 12px 16px; border-bottom: 1px solid #f1f5f9;">
+                                <div style="font-weight: 500; color: #1f2937; margin-bottom: 4px;">
+                                    {{ reminder.title }}
+                                </div>
+                                <div style="font-size: 12px; color: #6b7280; margin-bottom: 6px;">
+                                    🕐 {{ reminder.date|date:"d/m/Y H:i" }}
+                                </div>
+                                <div style="font-size: 13px; color: #4b5563;">
+                                    {{ reminder.content|truncatechars:50 }}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div style="padding: 20px; text-align: center; color: #6b7280;">
+                                <div style="font-size: 24px; margin-bottom: 10px;">🔔</div>
+                                <p>Nenhum lembrete.</p>
+                                <a href="{% url 'reminder_create' %}" style="color: #10b981;">Criar lembrete</a>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions Bar -->
+        <div style="background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); padding: 20px;">
+            <h3 style="margin: 0 0 20px 0; color: #1f2937; display: flex; align-items: center; gap: 10px;">
+                ⚡ Ações Rápidas
+            </h3>
+            
+            <!-- Quick Add Task Form -->
+            <form method="post" action="{% url 'task_create' %}" 
+                  style="display: grid; grid-template-columns: 2fr 1fr auto; gap: 12px; align-items: center; margin-bottom: 20px;">
+                {% csrf_token %}
+                <input type="text" 
+                       name="description" 
+                       placeholder="Descreva sua nova tarefa..." 
+                       required 
+                       style="padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; transition: border-color 0.2s;"
+                       onfocus="this.style.borderColor='#3b82f6'"
+                       onblur="this.style.borderColor='#e5e7eb'">
+                <input type="date" 
+                       name="date" 
+                       required 
+                       style="padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px;"
+                       onfocus="this.style.borderColor='#3b82f6'"
+                       onblur="this.style.borderColor='#e5e7eb'">
+                <button type="submit" 
+                        style="padding: 12px 24px; background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; transition: transform 0.2s; white-space: nowrap;"
+                        onmouseover="this.style.transform='translateY(-1px)'"
+                        onmouseout="this.style.transform='translateY(0)'">
+                    ➕ Adicionar
+                </button>
+            </form>
+
+            <!-- Quick Navigation -->
+            <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                <a href="{% url 'cave_metrics' %}" 
+                   style="display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: #f1f5f9; color: #374151; text-decoration: none; border-radius: 8px; font-size: 14px; transition: background-color 0.2s;"
+                   onmouseover="this.style.backgroundColor='#e2e8f0'"
+                   onmouseout="this.style.backgroundColor='#f1f5f9'">
+                    📊 Ver Métricas
+                </a>
+                <a href="{% url 'objective_list' %}" 
+                   style="display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: #f1f5f9; color: #374151; text-decoration: none; border-radius: 8px; font-size: 14px; transition: background-color 0.2s;"
+                   onmouseover="this.style.backgroundColor='#e2e8f0'"
+                   onmouseout="this.style.backgroundColor='#f1f5f9'">
+                    🎯 Objetivos
+                </a>
+                <button onclick="toggleDarkMode()" 
+                        style="display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: #f1f5f9; color: #374151; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; transition: background-color 0.2s;"
+                        onmouseover="this.style.backgroundColor='#e2e8f0'"
+                        onmouseout="this.style.backgroundColor='#f1f5f9'">
+                    🌓 Tema
+                </button>
+            </div>
+        </div>
+
+    {% else %}
+        <div style="text-align: center; padding: 40px;">
+            <h2>Você precisa estar logado para ver o dashboard</h2>
+            <p><a href="{% url 'user_login' %}" style="color: #007cba;">Fazer Login</a> | <a href="{% url 'register' %}" style="color: #007cba;">Registrar-se</a></p>
+        </div>
+    {% endif %}
+</div>
+
+<!-- React Scripts -->
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="{% static 'js/react-calendar.js' %}"></script>
+
+<!-- Dashboard Enhancements -->
+<script>
+// Update current date
+document.getElementById('current-date').textContent = 
+    new Date().toLocaleDateString('pt-BR', { 
+        weekday: 'long', 
+        day: 'numeric', 
+        month: 'long' 
+    });
+
+// Toggle task completion
+function toggleTask(taskId) {
+    const checkbox = event.target;
+    const taskRow = checkbox.closest('div');
+    
+    fetch(`/tasks/${taskId}/complete/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'Content-Type': 'application/json',
+        },
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update UI immediately
+            const textDiv = taskRow.querySelector('div[style*="font-weight: 500"]');
+            const badgeDiv = taskRow.querySelector('div[style*="border-radius: 12px"]');
+            
+            if (checkbox.checked) {
+                textDiv.style.textDecoration = 'line-through';
+                textDiv.style.color = '#9ca3af';
+                badgeDiv.style.background = '#d1fae5';
+                badgeDiv.style.color = '#065f46';
+                badgeDiv.textContent = 'Concluída';
+                
+                // Show success animation
+                taskRow.style.transform = 'scale(1.02)';
+                setTimeout(() => taskRow.style.transform = 'scale(1)', 200);
+            } else {
+                textDiv.style.textDecoration = 'none';
+                textDiv.style.color = 'inherit';
+                badgeDiv.style.background = '#fef3c7';
+                badgeDiv.style.color = '#92400e';
+                badgeDiv.textContent = 'Pendente';
+            }
+            
+            // Update stats
+            updateStats();
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        // Revert checkbox state on error
+        checkbox.checked = !checkbox.checked;
+        alert('Erro ao atualizar tarefa. Tente novamente.');
+    });
+}
+
+// Update stats counters
+function updateStats() {
+    // This would require a more complex implementation
+    // For now, just show a brief notification
+    showNotification('Estatísticas atualizadas!', 'success');
+}
+
+// Dark mode toggle
+function toggleDarkMode() {
+    const isDark = document.body.classList.contains('dark-mode');
+    
+    if (isDark) {
+        document.body.classList.remove('dark-mode');
+        localStorage.setItem('darkMode', 'false');
+    } else {
+        document.body.classList.add('dark-mode');
+        localStorage.setItem('darkMode', 'true');
+    }
+    
+    showNotification(`Modo ${isDark ? 'claro' : 'escuro'} ativado!`, 'info');
+}
+
+// Load saved dark mode preference
+document.addEventListener('DOMContentLoaded', function() {
+    if (localStorage.getItem('darkMode') === 'true') {
+        document.body.classList.add('dark-mode');
+    }
+});
+
+// Show notification
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.textContent = message;
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: ${type === 'error' ? '#ef4444' : type === 'success' ? '#10b981' : '#3b82f6'};
+        color: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 1000;
+        opacity: 0;
+        transform: translateX(100%);
+        transition: all 0.3s ease;
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Animate in
+    setTimeout(() => {
+        notification.style.opacity = '1';
+        notification.style.transform = 'translateX(0)';
+    }, 10);
+    
+    // Animate out and remove
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => document.body.removeChild(notification), 300);
+    }, 3000);
+}
+
+// Auto-set today's date in quick add form
+document.addEventListener('DOMContentLoaded', function() {
+    const dateInput = document.querySelector('input[name="date"]');
+    if (dateInput && !dateInput.value) {
+        dateInput.value = new Date().toISOString().split('T')[0];
+    }
+});
+
+// Keyboard shortcuts
+document.addEventListener('keydown', function(e) {
+    // Ctrl + N: Focus on quick add input
+    if (e.ctrlKey && e.key === 'n') {
+        e.preventDefault();
+        document.querySelector('input[name="description"]').focus();
+        showNotification('Atalho: Ctrl+N para nova tarefa', 'info');
+    }
+    
+    // Ctrl + M: Go to metrics
+    if (e.ctrlKey && e.key === 'm') {
+        e.preventDefault();
+        window.location.href = '{% url "cave_metrics" %}';
+    }
+});
+</script>
+
+<!-- Dark Mode Styles -->
+<style>
+.dark-mode {
+    background: #1f2937 !important;
+    color: #f9fafb !important;
+}
+
+.dark-mode [style*="background: white"] {
+    background: #374151 !important;
+    color: #f9fafb !important;
+}
+
+.dark-mode [style*="color: #1f2937"] {
+    color: #f9fafb !important;
+}
+
+.dark-mode [style*="background: #f8fafc"] {
+    background: #4b5563 !important;
+}
+
+.dark-mode [style*="border: 2px solid #e5e7eb"] {
+    border: 2px solid #6b7280 !important;
+    background: #374151 !important;
+    color: #f9fafb !important;
+}
+</style>
+
+{% endblock %}

@@ -50,6 +50,7 @@ class CustomUser(AbstractUser):
         return self.email
 
 class Task(models.Model):
+    """Tasks can be linked to objectives (cave mode) or standalone (additional tasks)"""
     RECURRENCE_CHOICES = [
         ('none', 'Sem recorrência'),
         ('daily', 'Diariamente'),
@@ -74,9 +75,20 @@ class Task(models.Model):
     recurrence_type = models.CharField(max_length=10, choices=RECURRENCE_CHOICES, default='none')
     recurrence_end_date = models.DateField(null=True, blank=True)
     recurrence_days = models.JSONField(default=list, blank=True)
+    
+    # Cave Mode: Link to objective or standalone additional task
+    objective = models.ForeignKey('Objective', on_delete=models.CASCADE, null=True, blank=True, related_name='tasks')
+    is_objective_task = models.BooleanField(default=False, help_text='True if this is a daily cave mode objective task')
 
     def __str__(self):
+        if self.objective:
+            return f"{self.objective.title}: {self.description}"
         return self.description
+        
+    @property
+    def task_type(self):
+        """Return whether this is an objective task or additional task"""
+        return "objective" if self.objective else "additional"
     
 class Reminder(models.Model):
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='reminders')
@@ -87,38 +99,59 @@ class Reminder(models.Model):
     def __str__(self):
         return self.title
 
-class Challenge(models.Model):
-    STATUS_CHOICES = [
-        ('active', 'Em Andamento'),
-        ('completed', 'Concluído'),
-    ]
-
-    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='challenges')
+class Objective(models.Model):
+    """Cave Mode objectives - long-term goals to track daily"""
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='objectives')
     title = models.CharField(max_length=200)
-    start_date = models.DateField()
-    end_date = models.DateField()
-    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='active')
+    description = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
-
+    is_active = models.BooleanField(default=True)
+    
     def __str__(self):
         return self.title
-
-    def get_completion_rate(self):
-        total_tasks = self.challenge_tasks.count() * self.get_total_days()
-        completed_tasks = Task.objects.filter(
-            challenge_task__challenge=self,
-            is_done=True
-        ).count()
         
-        return (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0
-
-    def get_total_days(self):
-        return (self.end_date - self.start_date).days + 1
-
-class ChallengeTask(models.Model):
-    challenge = models.ForeignKey(Challenge, on_delete=models.CASCADE, related_name='challenge_tasks')
-    description = models.CharField(max_length=200)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"{self.challenge.title} - {self.description}"
+    def get_streak_count(self):
+        """Calculate current streak of consecutive days with completed tasks"""
+        from datetime import date, timedelta
+        current_date = date.today()
+        streak = 0
+        
+        while True:
+            daily_tasks = Task.objects.filter(
+                user=self.user,
+                date=current_date,
+                objective=self,
+                is_done=True
+            )
+            
+            if daily_tasks.exists():
+                streak += 1
+                current_date -= timedelta(days=1)
+            else:
+                break
+                
+        return streak
+        
+    def get_completion_data_last_year(self):
+        """Get completion data for GitHub-style heatmap"""
+        from datetime import date, timedelta
+        from collections import defaultdict
+        
+        end_date = date.today()
+        start_date = end_date - timedelta(days=365)
+        
+        completion_data = defaultdict(int)
+        
+        tasks = Task.objects.filter(
+            user=self.user,
+            objective=self,
+            date__gte=start_date,
+            date__lte=end_date,
+            is_done=True
+        )
+        
+        for task in tasks:
+            date_str = task.date.strftime('%Y-%m-%d')
+            completion_data[date_str] += 1
+            
+        return dict(completion_data)

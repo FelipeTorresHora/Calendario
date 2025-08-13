@@ -1,0 +1,445 @@
+{% extends 'calendario/base.html' %}
+{% load static %}
+
+{% block title %}{% if is_edit %}Editar{% else %}Novo{% endif %} Objetivo{% endblock %}
+
+{% block content %}
+<style>
+/* Inherit theme from base template - no body override needed */
+
+.form-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.page-header {
+    background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 24px;
+    text-align: center;
+}
+
+.page-title {
+    margin: 0;
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.page-subtitle {
+    margin: 8px 0 0 0;
+    color: var(--text-secondary);
+    font-size: 16px;
+}
+
+.form-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 32px;
+    margin-bottom: 24px;
+}
+
+.form-group {
+    margin-bottom: 24px;
+}
+
+.form-label {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+}
+
+.form-input {
+    width: 100%;
+    padding: 16px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 16px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    box-sizing: border-box;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.1);
+}
+
+.form-textarea {
+    min-height: 120px;
+    resize: vertical;
+    font-family: inherit;
+}
+
+.form-help {
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+.form-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-color);
+}
+
+.btn {
+    padding: 12px 24px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 120px;
+    justify-content: center;
+}
+
+.btn-primary {
+    background: #238636;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #2ea043;
+    transform: translateY(-1px);
+}
+
+.btn-secondary {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+}
+
+.btn-secondary:hover {
+    background: var(--border-color);
+    color: var(--text-primary);
+}
+
+.breadcrumb {
+    margin-bottom: 20px;
+}
+
+.breadcrumb a {
+    color: #58a6ff;
+    text-decoration: none;
+    font-size: 14px;
+}
+
+.breadcrumb a:hover {
+    text-decoration: underline;
+}
+
+.breadcrumb span {
+    color: #8b949e;
+    margin: 0 8px;
+}
+
+.objective-preview {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 16px;
+    margin-top: 16px;
+    border-left: 3px solid #238636;
+}
+
+.preview-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #238636;
+    margin-bottom: 8px;
+}
+
+.preview-content {
+    color: var(--text-secondary);
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.tips-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 24px;
+    border-left: 4px solid #fd7e14;
+}
+
+.tips-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.tips-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.tips-list li {
+    padding: 8px 0;
+    color: var(--text-secondary);
+    font-size: 14px;
+    line-height: 1.4;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.tips-list li:last-child {
+    border-bottom: none;
+}
+
+.tips-list li::before {
+    content: "💡";
+    margin-right: 8px;
+}
+
+@media (max-width: 768px) {
+    .form-container {
+        padding: 16px;
+    }
+    
+    .form-card {
+        padding: 24px;
+    }
+    
+    .form-actions {
+        flex-direction: column;
+    }
+    
+    .btn {
+        width: 100%;
+    }
+}
+
+/* Validation styles */
+.form-input:invalid {
+    border-color: #da3633;
+}
+
+.form-input:invalid:focus {
+    border-color: #da3633;
+    box-shadow: 0 0 0 3px rgba(218, 54, 51, 0.1);
+}
+
+.error-message {
+    color: #da3633;
+    font-size: 12px;
+    margin-top: 4px;
+}
+</style>
+
+<div class="form-container">
+    <!-- Breadcrumb -->
+    <nav class="breadcrumb">
+        <a href="{% url 'dashboard' %}">🕳️ Cave Mode</a>
+        <span>/</span>
+        <a href="{% url 'objective_list' %}">Objetivos</a>
+        <span>/</span>
+        <span>{% if is_edit %}Editar{% else %}Novo Objetivo{% endif %}</span>
+    </nav>
+
+    <!-- Header -->
+    <div class="page-header">
+        <h1 class="page-title">
+            {% if is_edit %}
+                ✏️ Editar Objetivo
+            {% else %}
+                🎯 Novo Objetivo
+            {% endif %}
+        </h1>
+        <p class="page-subtitle">
+            {% if is_edit %}
+                Modifique as informações do seu objetivo
+            {% else %}
+                Crie um objetivo para trackear diariamente no Cave Mode
+            {% endif %}
+        </p>
+    </div>
+
+    <!-- Main Form -->
+    <div class="form-card">
+        <form method="post" id="objective-form">
+            {% csrf_token %}
+            
+            <div class="form-group">
+                <label for="{{ form.title.id_for_label }}" class="form-label">
+                    Nome do Objetivo *
+                </label>
+                {{ form.title }}
+                <div class="form-help">
+                    Seja específico e acionável. Ex: "Exercitar-se diariamente", "Meditar por 10 minutos", "Ler 30 páginas"
+                </div>
+                {% if form.title.errors %}
+                    <div class="error-message">{{ form.title.errors.0 }}</div>
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                <label for="{{ form.description.id_for_label }}" class="form-label">
+                    Descrição (Opcional)
+                </label>
+                {{ form.description }}
+                <div class="form-help">
+                    Descreva mais detalhes sobre seu objetivo: por que é importante, como você planeja alcançá-lo, etc.
+                </div>
+                {% if form.description.errors %}
+                    <div class="error-message">{{ form.description.errors.0 }}</div>
+                {% endif %}
+            </div>
+
+            <!-- Preview -->
+            <div class="objective-preview" id="objective-preview" style="display: none;">
+                <div class="preview-title">Preview do seu objetivo:</div>
+                <div class="preview-content" id="preview-content"></div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="form-actions">
+                <a href="{% url 'objective_list' %}" class="btn btn-secondary">
+                    ↩️ Cancelar
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    {% if is_edit %}
+                        💾 Salvar Alterações
+                    {% else %}
+                        🎯 Criar Objetivo
+                    {% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Tips -->
+    <div class="tips-card">
+        <h3 class="tips-title">
+            💡 Dicas para objetivos eficazes
+        </h3>
+        <ul class="tips-list">
+            <li>Seja específico: Em vez de "exercitar", use "correr 5km" ou "30 minutos de yoga"</li>
+            <li>Torne mensurável: Defina métricas claras para saber quando completou</li>
+            <li>Comece pequeno: É melhor um hábito pequeno e consistente do que grande e irregular</li>
+            <li>Foque na consistência: O objetivo é construir uma sequência (streak) diária</li>
+            <li>Use o heatmap: A visualização vai te motivar a manter a consistência</li>
+        </ul>
+    </div>
+</div>
+
+<script>
+// Live preview
+document.addEventListener('DOMContentLoaded', function() {
+    const titleInput = document.getElementById('{{ form.title.id_for_label }}');
+    const descInput = document.getElementById('{{ form.description.id_for_label }}');
+    const preview = document.getElementById('objective-preview');
+    const previewContent = document.getElementById('preview-content');
+    
+    function updatePreview() {
+        const title = titleInput.value.trim();
+        const description = descInput.value.trim();
+        
+        if (title) {
+            let previewHTML = `<strong>${title}</strong>`;
+            if (description) {
+                previewHTML += `<br><small style="color: #8b949e;">${description}</small>`;
+            }
+            previewContent.innerHTML = previewHTML;
+            preview.style.display = 'block';
+        } else {
+            preview.style.display = 'none';
+        }
+    }
+    
+    titleInput.addEventListener('input', updatePreview);
+    descInput.addEventListener('input', updatePreview);
+    
+    // Initial preview update
+    updatePreview();
+    
+    // Form validation
+    const form = document.getElementById('objective-form');
+    form.addEventListener('submit', function(e) {
+        const title = titleInput.value.trim();
+        
+        if (!title) {
+            e.preventDefault();
+            titleInput.focus();
+            titleInput.style.borderColor = '#da3633';
+            
+            // Remove error styling after user starts typing
+            titleInput.addEventListener('input', function() {
+                this.style.borderColor = '#30363d';
+            }, { once: true });
+        }
+    });
+    
+    // Auto-focus on title input
+    titleInput.focus();
+    
+    // Character counter for title
+    titleInput.addEventListener('input', function() {
+        const maxLength = 200;
+        const currentLength = this.value.length;
+        
+        let counter = this.nextElementSibling;
+        if (!counter || !counter.classList.contains('char-counter')) {
+            counter = document.createElement('div');
+            counter.className = 'char-counter';
+            counter.style.cssText = 'font-size: 11px; color: #8b949e; margin-top: 4px; text-align: right;';
+            this.parentNode.insertBefore(counter, this.nextSibling);
+        }
+        
+        counter.textContent = `${currentLength}/${maxLength} caracteres`;
+        
+        if (currentLength > maxLength * 0.9) {
+            counter.style.color = '#fd7e14';
+        } else {
+            counter.style.color = '#8b949e';
+        }
+    });
+});
+
+// Enhanced UX
+document.addEventListener('DOMContentLoaded', function() {
+    // Add loading state to submit button
+    const form = document.getElementById('objective-form');
+    const submitBtn = form.querySelector('button[type="submit"]');
+    
+    form.addEventListener('submit', function() {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '⏳ Salvando...';
+        submitBtn.style.opacity = '0.6';
+    });
+    
+    // Smooth focus transitions
+    document.querySelectorAll('.form-input').forEach(input => {
+        input.addEventListener('focus', function() {
+            this.parentElement.style.transform = 'translateY(-2px)';
+        });
+        
+        input.addEventListener('blur', function() {
+            this.parentElement.style.transform = 'translateY(0)';
+        });
+    });
+});
+</script>
+
+{% endblock %}
