@@ -4,13 +4,20 @@ from django.contrib.auth import login, authenticate, logout
 from django.contrib import messages
 from django.http import JsonResponse
 from django.core.serializers.json import DjangoJSONEncoder
+from django.core.cache import cache
+from django.views.decorators.cache import cache_page
+from django.conf import settings
 import json
 from .models import Task, Reminder, Challenge, ChallengeTask
 from .forms import TaskForm, ReminderForm, CustomUserCreationForm, ChallengeForm, ChallengeTaskForm, ChallengeTaskFormSet
+from .cache_utils import CacheManager
 from datetime import datetime, timedelta
 from django.utils.dateparse import parse_date
 from django.views.decorators.http import require_http_methods
 
+def invalidate_user_cache(user_id):
+    """Invalidate all cache entries for a specific user"""
+    CacheManager.invalidate_user_cache(user_id)
 
 def home(request):
     if request.method == 'GET':
@@ -48,27 +55,31 @@ def user_logout(request):
 
 @login_required
 def dashboard(request):
-    # Buscar apenas os lembretes para exibir na lateral
-    reminders = Reminder.objects.filter(user=request.user).order_by('date')
+    def get_dashboard_data():
+        # Buscar apenas os lembretes para exibir na lateral
+        reminders = Reminder.objects.filter(user=request.user).order_by('date')
+        
+        # Buscar todas as tarefas para o calendário
+        tasks = Task.objects.filter(user=request.user).order_by('date')
+        
+        # Preparar dados das tarefas para o calendário
+        tasks_data = []
+        for task in tasks:
+            tasks_data.append({
+                'id': task.id,
+                'description': task.description,
+                'date': task.date.strftime('%Y-%m-%d'),
+                'is_done': task.is_done
+            })
+        
+        return {
+            'tasks': tasks,
+            'reminders': reminders,
+            'tasks_json': json.dumps(tasks_data, cls=DjangoJSONEncoder)
+        }
     
-    # Buscar todas as tarefas para o calendário
-    tasks = Task.objects.filter(user=request.user).order_by('date')
-    
-    # Preparar dados das tarefas para o calendário
-    tasks_data = []
-    for task in tasks:
-        tasks_data.append({
-            'id': task.id,
-            'description': task.description,
-            'date': task.date.strftime('%Y-%m-%d'),
-            'is_done': task.is_done
-        })
-    
-    context = {
-        'tasks': tasks,
-        'reminders': reminders,
-        'tasks_json': json.dumps(tasks_data, cls=DjangoJSONEncoder)
-    }
+    cache_key = CacheManager.DASHBOARD_DATA.format(user_id=request.user.id)
+    context = CacheManager.get_or_set(cache_key, get_dashboard_data, timeout=300)
     
     return render(request, 'calendario/dashboard.html', context)
 
@@ -150,6 +161,8 @@ def task_create(request):
                         current_date += timedelta(days=1)
 
             messages.success(request, 'Tarefa(s) criada(s) com sucesso!')
+            # Invalidate cache after creating tasks
+            invalidate_user_cache(request.user.id)
             return redirect('dashboard')
 
         except ValueError as e:
@@ -176,6 +189,9 @@ def complete_task(request, task_id):
     task.is_done = True
     task.save()
     
+    # Invalidate cache after completing task
+    invalidate_user_cache(request.user.id)
+    
     return JsonResponse({
         'success': True
     })
@@ -187,6 +203,8 @@ def task_update(request, pk):
         form = TaskForm(request.POST, instance=task)
         if form.is_valid():
             form.save()
+            # Invalidate cache after updating task
+            invalidate_user_cache(request.user.id)
             messages.success(request, 'Tarefa atualizada com sucesso!')
             return redirect('dashboard')
     else:
@@ -197,6 +215,8 @@ def task_update(request, pk):
 def task_delete(request, pk):
     task = get_object_or_404(Task, pk=pk, user=request.user)
     task.delete()
+    # Invalidate cache after deleting task
+    invalidate_user_cache(request.user.id)
     messages.success(request, 'Tarefa excluída com sucesso!')
     return redirect('dashboard')
 
@@ -236,53 +256,63 @@ def reminder_delete(request, pk):
 
 @login_required
 def dashboard_metrics(request):
-    # Obter todos os desafios do usuário
-    challenges = Challenge.objects.filter(user=request.user)
+    # Cache key specific to user
+    cache_key = f'dashboard_metrics_{request.user.id}'
+    cached_data = cache.get(cache_key)
     
-    # Calcular métricas para tarefas
-    total_tasks = Task.objects.filter(user=request.user).count()
-    completed_tasks = Task.objects.filter(user=request.user, is_done=True).count()
-    completion_rate = (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0
-    
-    # Métricas de desafios
-    active_challenges = challenges.filter(status='active').count()
-    completed_challenges = challenges.filter(status='completed').count()
-    
-    # Métricas por período (últimos 30 dias)
-    thirty_days_ago = datetime.now().date() - timedelta(days=30)
-    tasks_last_30_days = Task.objects.filter(
-        user=request.user,
-        date__gte=thirty_days_ago
-    )
-    
-    # Agrupamento de conclusão por dia
-    completion_by_day = {}
-    for task in tasks_last_30_days:
-        day = task.date.strftime('%Y-%m-%d')
-        if day not in completion_by_day:
-            completion_by_day[day] = {'total': 0, 'completed': 0}
-        completion_by_day[day]['total'] += 1
-        if task.is_done:
-            completion_by_day[day]['completed'] += 1
-    
-    # Métricas de desafios ativos
-    active_challenges_data = []
-    for challenge in challenges.filter(status='active'):
-        active_challenges_data.append({
-            'title': challenge.title,
-            'completion_rate': challenge.get_completion_rate(),
-            'days_remaining': (challenge.end_date - datetime.now().date()).days
-        })
+    if cached_data:
+        context = cached_data
+    else:
+        # Obter todos os desafios do usuário
+        challenges = Challenge.objects.filter(user=request.user)
+        
+        # Calcular métricas para tarefas
+        total_tasks = Task.objects.filter(user=request.user).count()
+        completed_tasks = Task.objects.filter(user=request.user, is_done=True).count()
+        completion_rate = (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0
+        
+        # Métricas de desafios
+        active_challenges = challenges.filter(status='active').count()
+        completed_challenges = challenges.filter(status='completed').count()
+        
+        # Métricas por período (últimos 30 dias)
+        thirty_days_ago = datetime.now().date() - timedelta(days=30)
+        tasks_last_30_days = Task.objects.filter(
+            user=request.user,
+            date__gte=thirty_days_ago
+        )
+        
+        # Agrupamento de conclusão por dia
+        completion_by_day = {}
+        for task in tasks_last_30_days:
+            day = task.date.strftime('%Y-%m-%d')
+            if day not in completion_by_day:
+                completion_by_day[day] = {'total': 0, 'completed': 0}
+            completion_by_day[day]['total'] += 1
+            if task.is_done:
+                completion_by_day[day]['completed'] += 1
+        
+        # Métricas de desafios ativos
+        active_challenges_data = []
+        for challenge in challenges.filter(status='active'):
+            active_challenges_data.append({
+                'title': challenge.title,
+                'completion_rate': challenge.get_completion_rate(),
+                'days_remaining': (challenge.end_date - datetime.now().date()).days
+            })
 
-    context = {
-        'total_tasks': total_tasks,
-        'completed_tasks': completed_tasks,
-        'completion_rate': round(completion_rate, 2),
-        'active_challenges': active_challenges,
-        'completed_challenges': completed_challenges,
-        'completion_by_day': json.dumps(completion_by_day),
-        'active_challenges_data': active_challenges_data
-    }
+        context = {
+            'total_tasks': total_tasks,
+            'completed_tasks': completed_tasks,
+            'completion_rate': round(completion_rate, 2),
+            'active_challenges': active_challenges,
+            'completed_challenges': completed_challenges,
+            'completion_by_day': json.dumps(completion_by_day),
+            'active_challenges_data': active_challenges_data
+        }
+        
+        # Cache for 10 minutes
+        cache.set(cache_key, context, 600)
     
     return render(request, 'calendario/dashboard_metrics.html', context)
 
