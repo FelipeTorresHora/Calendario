@@ -1,9 +1,11 @@
 {% extends 'calendario/base.html' %}
+{% load static %}
 
 {% block title %}Dashboard{% endblock %}
 
 {% block content %}
 <style>
+/* Legacy styles for fallback */
     .dashboard-container {
         display: grid;
         grid-template-columns: 1fr 400px;
@@ -297,22 +299,15 @@
         </section>
     </div>
 
-    <!-- Coluna da direita: Calendário -->
-    <div class="calendar">
-        <div class="calendar-header">
-            <button id="prevMonth">&lt;</button>
-            <h3 id="currentMonth"></h3>
-            <button id="nextMonth">&gt;</button>
-        </div>
-        <div class="calendar-grid">
-            <div class="weekday-header">Dom</div>
-            <div class="weekday-header">Seg</div>
-            <div class="weekday-header">Ter</div>
-            <div class="weekday-header">Qua</div>
-            <div class="weekday-header">Qui</div>
-            <div class="weekday-header">Sex</div>
-            <div class="weekday-header">Sáb</div>
-            <!-- Dias do calendário serão inseridos via JavaScript -->
+    <!-- Coluna da direita: Calendário React -->
+    <div 
+        id="react-calendar" 
+        data-tasks="{{ tasks_json|escapejs }}"
+        data-user-id="{{ user.id }}"
+    >
+        <!-- Fallback content for when React is loading -->
+        <div class="calendar-loading">
+            <p>Carregando calendário...</p>
         </div>
     </div>
 </div>
@@ -498,4 +493,25 @@
         }
     });
 </script>
+
+<!-- React Components Scripts -->
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="{% static 'js/react-calendar.js' %}"></script>
+
+<!-- Loading styles -->
+<style>
+.calendar-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 400px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  color: #6b7280;
+  font-size: 16px;
+}
+</style>
+
 {% endblock %}

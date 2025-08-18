@@ -1,0 +1,955 @@
+{% extends 'calendario/base.html' %}
+{% load static %}
+
+{% block title %}Objetivos e Tarefas{% endblock %}
+
+{% block content %}
+<style>
+/* Inherit theme from base template - no body override needed */
+
+.objectives-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.page-header {
+    background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.page-title {
+    margin: 0;
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.btn-cave {
+    background: #238636;
+    color: white;
+    text-decoration: none;
+    padding: 12px 20px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    border: none;
+    cursor: pointer;
+    transition: background 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-cave:hover {
+    background: #2ea043;
+    color: white;
+}
+
+.objectives-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 24px;
+}
+
+.objectives-section {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.section-header {
+    padding: 20px;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-primary);
+}
+
+.section-title {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.objectives-list {
+    padding: 0;
+}
+
+.objective-card {
+    padding: 20px;
+    border-bottom: 1px solid var(--border-light);
+    transition: background 0.2s;
+}
+
+.objective-card:hover {
+    background: var(--bg-primary);
+}
+
+.objective-card:last-child {
+    border-bottom: none;
+}
+
+.objective-header {
+    display: flex;
+    justify-content: between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.objective-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+    flex: 1;
+}
+
+.objective-actions {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+    border-radius: 4px;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-edit {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+}
+
+.btn-edit:hover {
+    background: var(--border-color);
+    color: var(--text-primary);
+}
+
+.btn-toggle {
+    background: #fd7e14;
+    color: white;
+}
+
+.btn-toggle:hover {
+    background: #e85d04;
+    color: white;
+}
+
+.btn-toggle.inactive {
+    background: #238636;
+}
+
+.btn-toggle.inactive:hover {
+    background: #2ea043;
+}
+
+.btn-delete {
+    background: #da3633;
+    color: white;
+}
+
+.btn-delete:hover {
+    background: #b91c1c;
+    color: white;
+}
+
+.objective-description {
+    color: var(--text-secondary);
+    font-size: 14px;
+    line-height: 1.5;
+    margin-bottom: 12px;
+}
+
+.objective-stats {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.streak-badge {
+    background: #fd7e14;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.status-badge {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.status-active {
+    background: #238636;
+    color: white;
+}
+
+.status-inactive {
+    background: #6e7681;
+    color: white;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #8b949e;
+}
+
+.empty-icon {
+    font-size: 64px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+
+.breadcrumb {
+    margin-bottom: 20px;
+}
+
+.breadcrumb a {
+    color: #58a6ff;
+    text-decoration: none;
+    font-size: 14px;
+}
+
+.breadcrumb a:hover {
+    text-decoration: underline;
+}
+
+.breadcrumb span {
+    color: #8b949e;
+    margin: 0 8px;
+}
+
+/* Task Management Styles */
+.task-management-section {
+    margin-top: 24px;
+    display: grid;
+    gap: 24px;
+}
+
+.task-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    padding: 20px;
+}
+
+.stat-card {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+    transition: border-color 0.2s;
+}
+
+.stat-card:hover {
+    border-color: var(--accent-color);
+}
+
+.stat-number {
+    font-size: 32px;
+    font-weight: bold;
+    margin-bottom: 8px;
+    color: var(--accent-color);
+}
+
+.stat-label {
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+.objective-progress-list {
+    padding: 20px;
+    display: grid;
+    gap: 16px;
+}
+
+.progress-card {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 16px;
+}
+
+.progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.progress-title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.progress-percentage {
+    font-weight: 600;
+    color: var(--accent-color);
+}
+
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background: var(--bg-tertiary);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 12px;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #238636, #26a641);
+    transition: width 0.3s ease;
+    border-radius: 4px;
+}
+
+.progress-stats {
+    display: flex;
+    gap: 16px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.progress-stat {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.task-list-container,
+.recent-tasks-container {
+    padding: 20px;
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.task-date-group {
+    margin-bottom: 24px;
+}
+
+.task-date-header {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 12px 0;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-light);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.today-badge {
+    background: var(--accent-color);
+    color: white;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 8px;
+    font-weight: 500;
+}
+
+.task-items {
+    display: grid;
+    gap: 8px;
+}
+
+.task-item-card {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: all 0.2s;
+}
+
+.task-item-card:hover {
+    border-color: var(--accent-color);
+    background: var(--bg-tertiary);
+}
+
+.task-item-card.completed {
+    opacity: 0.7;
+}
+
+.task-checkbox-container {
+    flex-shrink: 0;
+}
+
+.task-checkbox {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+.task-status-indicator {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+}
+
+.status-icon {
+    font-size: 16px;
+}
+
+.task-content {
+    flex: 1;
+}
+
+.task-description {
+    color: var(--text-primary);
+    font-size: 14px;
+    line-height: 1.4;
+    margin-bottom: 4px;
+}
+
+.task-description.completed-text {
+    text-decoration: line-through;
+    opacity: 0.7;
+}
+
+.task-objective {
+    display: flex;
+    align-items: center;
+}
+
+.objective-badge {
+    background: #7c3aed;
+    color: white;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 8px;
+    font-weight: 500;
+}
+
+.task-actions {
+    flex-shrink: 0;
+    display: flex;
+    gap: 6px;
+}
+
+@media (max-width: 768px) {
+    .page-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 16px;
+    }
+    
+    .objective-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .objective-actions {
+        align-self: stretch;
+        justify-content: space-between;
+    }
+    
+    .objective-stats {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .task-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .progress-stats {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .task-item-card {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .task-actions {
+        align-self: stretch;
+        justify-content: space-between;
+    }
+}
+</style>
+
+<div class="objectives-container">
+    <!-- Breadcrumb -->
+    <nav class="breadcrumb">
+        <a href="{% url 'dashboard' %}">🕳️ Cave Mode</a>
+        <span>/</span>
+        <span>Objetivos</span>
+    </nav>
+
+    <!-- Header -->
+    <div class="page-header">
+        <h1 class="page-title">🎯 Objetivos e Controle de Tarefas</h1>
+        <a href="{% url 'objective_create' %}" class="btn-cave">
+            <span>+</span>
+            Novo Objetivo
+        </a>
+    </div>
+
+    <!-- Objectives Grid -->
+    <div class="objectives-grid">
+        <!-- Active Objectives -->
+        <div class="objectives-section">
+            <div class="section-header">
+                <h2 class="section-title">
+                    <span>✅</span>
+                    Objetivos Ativos
+                </h2>
+            </div>
+            <div class="objectives-list">
+                {% if active_objectives %}
+                    {% for objective in active_objectives %}
+                    <div class="objective-card">
+                        <div class="objective-header">
+                            <h3 class="objective-title">{{ objective.title }}</h3>
+                            <div class="objective-actions">
+                                <a href="{% url 'objective_edit' objective.id %}" class="btn-sm btn-edit">Editar</a>
+                                <a href="{% url 'objective_toggle' objective.id %}" class="btn-sm btn-toggle">Pausar</a>
+                                <a href="{% url 'objective_delete' objective.id %}" 
+                                   class="btn-sm btn-delete"
+                                   onclick="return confirm('Tem certeza que deseja excluir este objetivo? Todas as tarefas vinculadas serão desvinculadas.')">
+                                   Excluir
+                                </a>
+                            </div>
+                        </div>
+                        
+                        {% if objective.description %}
+                        <div class="objective-description">
+                            {{ objective.description }}
+                        </div>
+                        {% endif %}
+                        
+                        <div class="objective-stats">
+                            <div class="stat-item">
+                                <span class="streak-badge">
+                                    🔥 {{ objective.get_streak_count }} dias
+                                </span>
+                            </div>
+                            <div class="stat-item">
+                                <span>📅</span>
+                                Criado em {{ objective.created_at|date:"d/m/Y" }}
+                            </div>
+                            <div class="stat-item">
+                                <span>📋</span>
+                                {{ objective.tasks.count }} tarefas vinculadas
+                            </div>
+                            <span class="status-badge status-active">ATIVO</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">
+                        <div class="empty-icon">🎯</div>
+                        <h3 style="color: #f0f6fc; margin-bottom: 8px;">Nenhum objetivo ativo</h3>
+                        <p>Crie seu primeiro objetivo para começar a trackear seu progresso diário!</p>
+                        <a href="{% url 'objective_create' %}" class="btn-cave" style="margin-top: 16px;">Criar Primeiro Objetivo</a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Inactive Objectives -->
+        {% if inactive_objectives %}
+        <div class="objectives-section">
+            <div class="section-header">
+                <h2 class="section-title">
+                    <span>⏸️</span>
+                    Objetivos Pausados
+                </h2>
+            </div>
+            <div class="objectives-list">
+                {% for objective in inactive_objectives %}
+                <div class="objective-card" style="opacity: 0.7;">
+                    <div class="objective-header">
+                        <h3 class="objective-title">{{ objective.title }}</h3>
+                        <div class="objective-actions">
+                            <a href="{% url 'objective_edit' objective.id %}" class="btn-sm btn-edit">Editar</a>
+                            <a href="{% url 'objective_toggle' objective.id %}" class="btn-sm btn-toggle inactive">Reativar</a>
+                            <a href="{% url 'objective_delete' objective.id %}" 
+                               class="btn-sm btn-delete"
+                               onclick="return confirm('Tem certeza que deseja excluir este objetivo?')">
+                               Excluir
+                            </a>
+                        </div>
+                    </div>
+                    
+                    {% if objective.description %}
+                    <div class="objective-description">
+                        {{ objective.description }}
+                    </div>
+                    {% endif %}
+                    
+                    <div class="objective-stats">
+                        <div class="stat-item">
+                            <span>📅</span>
+                            Criado em {{ objective.created_at|date:"d/m/Y" }}
+                        </div>
+                        <div class="stat-item">
+                            <span>📋</span>
+                            {{ objective.tasks.count }} tarefas vinculadas
+                        </div>
+                        <span class="status-badge status-inactive">PAUSADO</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Task Management Section -->
+    <div class="task-management-section">
+        <!-- Task Statistics -->
+        <div class="objectives-section">
+            <div class="section-header">
+                <h2 class="section-title">
+                    <span>📊</span>
+                    Estatísticas de Tarefas
+                </h2>
+            </div>
+            <div class="task-stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number">{{ total_tasks }}</div>
+                    <div class="stat-label">Total de Tarefas</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">{{ completed_tasks }}</div>
+                    <div class="stat-label">Tarefas Concluídas</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">{{ completion_rate|floatformat:1 }}%</div>
+                    <div class="stat-label">Taxa de Conclusão</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">{{ pending_tasks|length }}</div>
+                    <div class="stat-label">Tarefas Pendentes</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Objective Task Progress -->
+        {% if objective_task_stats %}
+        <div class="objectives-section">
+            <div class="section-header">
+                <h2 class="section-title">
+                    <span>📈</span>
+                    Progresso por Objetivo
+                </h2>
+            </div>
+            <div class="objective-progress-list">
+                {% for stat in objective_task_stats %}
+                <div class="progress-card">
+                    <div class="progress-header">
+                        <h4 class="progress-title">{{ stat.objective.title }}</h4>
+                        <span class="progress-percentage">{{ stat.completion_rate|floatformat:1 }}%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: {{ stat.completion_rate }}%;"></div>
+                    </div>
+                    <div class="progress-stats">
+                        <span class="progress-stat">
+                            ✅ {{ stat.completed_tasks }} concluídas
+                        </span>
+                        <span class="progress-stat">
+                            ⏳ {{ stat.pending_tasks }} pendentes
+                        </span>
+                        <span class="progress-stat">
+                            📋 {{ stat.total_tasks }} total
+                        </span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Pending Tasks Management -->
+        <div class="objectives-section">
+            <div class="section-header">
+                <h2 class="section-title">
+                    <span>⏳</span>
+                    Tarefas Pendentes
+                </h2>
+                <a href="{% url 'task_create' %}" class="btn-cave">+ Nova Tarefa</a>
+            </div>
+            <div class="task-list-container">
+                {% if pending_tasks %}
+                    {% regroup pending_tasks by date as tasks_by_date %}
+                    {% for date_group in tasks_by_date %}
+                    <div class="task-date-group">
+                        <h4 class="task-date-header">
+                            {{ date_group.grouper|date:"d/m/Y" }}
+                            {% if date_group.grouper == today %}
+                                <span class="today-badge">Hoje</span>
+                            {% endif %}
+                        </h4>
+                        <div class="task-items">
+                            {% for task in date_group.list %}
+                            <div class="task-item-card">
+                                <div class="task-checkbox-container">
+                                    <input type="checkbox" class="task-checkbox" 
+                                           data-task-id="{{ task.id }}" 
+                                           {% if task.is_done %}checked{% endif %}>
+                                </div>
+                                <div class="task-content">
+                                    <div class="task-description">{{ task.description }}</div>
+                                    {% if task.objective %}
+                                    <div class="task-objective">
+                                        <span class="objective-badge">{{ task.objective.title }}</span>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                <div class="task-actions">
+                                    <a href="{% url 'task_update' task.id %}" class="btn-sm btn-edit">Editar</a>
+                                    <a href="{% url 'task_delete' task.id %}" 
+                                       class="btn-sm btn-delete"
+                                       onclick="return confirm('Excluir esta tarefa?')">Excluir</a>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">
+                        <div class="empty-icon">✨</div>
+                        <h3 style="color: #f0f6fc; margin-bottom: 8px;">Nenhuma tarefa pendente!</h3>
+                        <p>Você está em dia com suas tarefas. Que tal criar uma nova?</p>
+                        <a href="{% url 'task_create' %}" class="btn-cave" style="margin-top: 16px;">Criar Nova Tarefa</a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Recent Tasks -->
+        <div class="objectives-section">
+            <div class="section-header">
+                <h2 class="section-title">
+                    <span>📝</span>
+                    Tarefas Recentes (Últimos 30 dias)
+                </h2>
+            </div>
+            <div class="recent-tasks-container">
+                {% if recent_tasks %}
+                    {% regroup recent_tasks by date as recent_tasks_by_date %}
+                    {% for date_group in recent_tasks_by_date %}
+                    <div class="task-date-group">
+                        <h4 class="task-date-header">{{ date_group.grouper|date:"d/m/Y" }}</h4>
+                        <div class="task-items">
+                            {% for task in date_group.list %}
+                            <div class="task-item-card {% if task.is_done %}completed{% endif %}">
+                                <div class="task-status-indicator">
+                                    {% if task.is_done %}
+                                        <span class="status-icon completed">✅</span>
+                                    {% else %}
+                                        <span class="status-icon pending">⏳</span>
+                                    {% endif %}
+                                </div>
+                                <div class="task-content">
+                                    <div class="task-description {% if task.is_done %}completed-text{% endif %}">
+                                        {{ task.description }}
+                                    </div>
+                                    {% if task.objective %}
+                                    <div class="task-objective">
+                                        <span class="objective-badge">{{ task.objective.title }}</span>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                <div class="task-actions">
+                                    <a href="{% url 'task_update' task.id %}" class="btn-sm btn-edit">Editar</a>
+                                    <a href="{% url 'task_delete' task.id %}" 
+                                       class="btn-sm btn-delete"
+                                       onclick="return confirm('Excluir esta tarefa?')">Excluir</a>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">
+                        <div class="empty-icon">📝</div>
+                        <h3 style="color: #f0f6fc; margin-bottom: 8px;">Nenhuma tarefa recente</h3>
+                        <p>Suas tarefas dos últimos 30 dias aparecerão aqui.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Add confirmation for destructive actions
+document.querySelectorAll('.btn-delete').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+        if (!confirm('Esta ação não pode ser desfeita. Continuar?')) {
+            e.preventDefault();
+        }
+    });
+});
+
+// Add loading states for toggle actions
+document.querySelectorAll('.btn-toggle').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const originalText = this.textContent;
+        this.textContent = 'Processando...';
+        this.style.opacity = '0.6';
+        this.style.pointerEvents = 'none';
+        
+        // Reset if page doesn't navigate away (fallback)
+        setTimeout(() => {
+            this.textContent = originalText;
+            this.style.opacity = '1';
+            this.style.pointerEvents = 'auto';
+        }, 5000);
+    });
+});
+
+// Task checkbox functionality
+document.querySelectorAll('.task-checkbox').forEach(checkbox => {
+    checkbox.addEventListener('change', function() {
+        const taskId = this.dataset.taskId;
+        const taskCard = this.closest('.task-item-card');
+        const originalChecked = this.checked;
+        
+        // Disable checkbox during request
+        this.disabled = true;
+        
+        fetch(`/tasks/${taskId}/complete/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Update task card visual state
+                if (data.is_done) {
+                    taskCard.classList.add('completed');
+                    const description = taskCard.querySelector('.task-description');
+                    if (description) {
+                        description.classList.add('completed-text');
+                    }
+                } else {
+                    taskCard.classList.remove('completed');
+                    const description = taskCard.querySelector('.task-description');
+                    if (description) {
+                        description.classList.remove('completed-text');
+                    }
+                }
+                
+                // Update statistics (if on same page)
+                setTimeout(() => {
+                    window.location.reload();
+                }, 500);
+                
+                // Trigger dashboard update if available
+                if (window.updateDashboardStats) {
+                    window.updateDashboardStats();
+                }
+            } else {
+                // Revert checkbox on error
+                this.checked = !originalChecked;
+            }
+        })
+        .catch(error => {
+            console.error('Error toggling task:', error);
+            // Revert checkbox on error
+            this.checked = !originalChecked;
+        })
+        .finally(() => {
+            // Re-enable checkbox
+            this.disabled = false;
+        });
+    });
+});
+
+// Auto-refresh functionality for real-time updates
+let autoRefreshInterval;
+
+function startAutoRefresh() {
+    // Refresh every 30 seconds
+    autoRefreshInterval = setInterval(() => {
+        // Only refresh if user is active (has interacted recently)
+        if (document.hidden) return;
+        
+        // Check for updates by comparing task counts
+        fetch('/objectives/', {
+            method: 'HEAD',
+        }).then(() => {
+            // Could implement more sophisticated update checking here
+        }).catch(() => {
+            // Handle offline gracefully
+        });
+    }, 30000);
+}
+
+function stopAutoRefresh() {
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+    }
+}
+
+// Start auto-refresh when page loads
+document.addEventListener('DOMContentLoaded', startAutoRefresh);
+
+// Stop auto-refresh when page is hidden
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        stopAutoRefresh();
+    } else {
+        startAutoRefresh();
+    }
+});
+</script>
+
+<!-- CSRF Token for AJAX requests -->
+{% csrf_token %}
+
+{% endblock %}

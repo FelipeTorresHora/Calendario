@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: calendario-app
+    env: python
+    plan: free
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn calendario_config.wsgi:application"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: DEBUG
+        value: False
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DB_NAME
+        sync: false
+      - key: DB_USER  
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        value: 5432
+      - key: REDIS_URL
+        sync: false

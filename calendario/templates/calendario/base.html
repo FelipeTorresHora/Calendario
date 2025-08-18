@@ -8,18 +8,55 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="{% static 'css/styles.css' %}">
     <style>
+        /* Dark Mode Variables */
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f4f4f4;
+            --bg-tertiary: #ffffff;
+            --text-primary: #333333;
+            --text-secondary: #666666;
+            --border-color: #dddddd;
+            --border-light: #eeeeee;
+            --accent-color: #007cba;
+            --success-bg: #e8f5e9;
+            --success-text: #2e7d32;
+            --error-bg: #ffebee;
+            --error-text: #c62828;
+            --shadow: rgba(0,0,0,0.1);
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-tertiary: #21262d;
+            --text-primary: #f0f6fc;
+            --text-secondary: #8b949e;
+            --border-color: #30363d;
+            --border-light: #21262d;
+            --accent-color: #58a6ff;
+            --success-bg: #0d4429;
+            --success-text: #3fb950;
+            --error-bg: #490202;
+            --error-text: #f85149;
+            --shadow: rgba(0,0,0,0.3);
+        }
+
         /* Estilos básicos */
         body {
-            font-family: Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
             line-height: 1.6;
             margin: 0;
             padding: 0;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
         
         header {
-            background-color: #f4f4f4;
+            background-color: var(--bg-secondary);
             padding: 1rem;
-            border-bottom: 1px solid #ddd;
+            border-bottom: 1px solid var(--border-color);
+            transition: all 0.3s ease;
         }
         
         nav ul {
@@ -38,110 +75,418 @@
         
         nav a {
             text-decoration: none;
-            color: #333;
+            color: var(--text-primary);
             padding: 0.5rem 1rem;
-            border-radius: 4px;
-            transition: background-color 0.3s;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
         }
 
         nav a:hover {
-            background-color: #e0e0e0;
+            background-color: var(--bg-tertiary);
+            color: var(--accent-color);
         }
 
         nav a.active {
-            background-color: #ddd;
+            background-color: var(--accent-color);
+            color: white;
         }
         
         .user-email {
             margin-right: 1rem;
-            color: #666;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
         }
         
         main {
             padding: 2rem;
             max-width: 1400px;
             margin: 0 auto;
+            min-height: calc(100vh - 200px);
         }
 
         /* Split container */
         .split-container {
             display: flex;
-            gap: 1rem;
+            gap: 0;
             position: relative;
             margin: 1rem 0;
             min-height: calc(100vh - 250px);
+            width: 100%;
         }
 
         .calendar-section {
             flex: 1;
             min-width: 300px;
-            background: #fff;
-            border-radius: 4px;
-            border: 1px solid #ddd;
-            padding: 1rem;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px var(--shadow);
+            margin-right: 5px;
+            overflow: hidden;
         }
 
         .tasks-section {
             width: 300px;
-            background: #fff;
-            border-radius: 4px;
-            border: 1px solid #ddd;
-            padding: 1rem;
+            flex: 0 0 300px;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px var(--shadow);
+            margin-left: 5px;
+            overflow: hidden;
         }
 
         .resizer {
             width: 5px;
-            background: #ddd;
+            background: var(--border-color);
             cursor: col-resize;
             transition: background 0.3s;
+            position: relative;
+            min-height: 100%;
+            flex: 0 0 5px;
+            z-index: 10;
+            user-select: none;
+        }
+        
+        .resizer::before {
+            content: '';
             position: absolute;
-            top: 0;
-            bottom: 0;
-            right: 300px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 3px;
+            height: 20px;
+            background: var(--text-secondary);
+            border-radius: 2px;
+            opacity: 0.5;
         }
 
         .resizer:hover,
         .resizer.dragging {
-            background: #999;
+            background: var(--accent-color);
+        }
+        
+        .resizer:hover::before,
+        .resizer.dragging::before {
+            opacity: 1;
+            background: white;
         }
 
         /* Estilos das tarefas */
         .tasks-header {
             margin-bottom: 1rem;
             padding-bottom: 0.5rem;
-            border-bottom: 1px solid #eee;
+            border-bottom: 1px solid var(--border-light);
+        }
+        
+        .tasks-header h3 {
+            color: var(--text-primary);
+            margin: 0;
         }
 
         .task-list {
             max-height: calc(100vh - 400px);
             overflow-y: auto;
+            padding: 0;
         }
 
-        .task-item {
-            padding: 0.75rem;
-            border-bottom: 1px solid #eee;
+        /* Beautiful Task Cards */
+        .task-card {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            margin-bottom: 12px;
+            padding: 16px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .task-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            border-color: var(--accent-color);
+        }
+        
+        .task-card.completed {
+            background: var(--bg-secondary);
+            opacity: 0.8;
+        }
+        
+        .task-card.updating {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+        
+        .task-card.success-animation {
+            animation: successPulse 0.6s ease;
+        }
+        
+        @keyframes successPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); background: var(--success-bg); }
+            100% { transform: scale(1); }
+        }
+
+        .task-card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .task-checkbox-container {
+            position: relative;
+            width: 20px;
+            height: 20px;
+        }
+
+        .task-checkbox {
+            position: absolute;
+            opacity: 0;
+            cursor: pointer;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+        }
+
+        .checkbox-custom {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--border-color);
+            border-radius: 4px;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .task-checkbox:checked + .checkbox-custom {
+            background: #238636;
+            border-color: #238636;
+        }
+
+        .task-checkbox:checked + .checkbox-custom::after {
+            content: '✓';
+            color: white;
+            font-weight: bold;
+            font-size: 12px;
+        }
+
+        .task-type-indicator {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .task-type-indicator.objective {
+            background: #7c3aed;
+            color: white;
+        }
+
+        .task-type-indicator.additional {
+            background: var(--accent-color);
+            color: white;
+        }
+
+        .task-card-content {
+            flex: 1;
+        }
+
+        .task-description {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-primary);
+            line-height: 1.4;
+            margin-bottom: 8px;
+            word-wrap: break-word;
+        }
+
+        .task-completed .task-description {
+            text-decoration: line-through;
+            opacity: 0.6;
+        }
+
+        .task-objective-tag {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 8px;
+        }
+
+        .objective-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .objective-name {
+            background: #7c3aed;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .task-additional-tag {
+            margin-bottom: 8px;
+        }
+
+        .additional-label {
+            background: var(--accent-color);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .task-card-footer {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            margin-top: 8px;
         }
 
-        .task-item:last-child {
-            border-bottom: none;
+        .task-date {
+            font-size: 12px;
+            color: var(--text-secondary);
         }
 
-        .task-complete-btn {
-            padding: 0.25rem 0.5rem;
-            background: #4CAF50;
+        .task-actions {
+            display: flex;
+            gap: 6px;
+        }
+
+        .task-btn {
+            width: 28px;
+            height: 28px;
+            border: 1px solid var(--border-color);
+            background: transparent;
+            border-radius: 6px;
+            cursor: pointer;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            font-size: 12px;
+        }
+
+        .task-btn:hover {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+
+        .edit-btn:hover {
+            border-color: var(--accent-color);
+            color: var(--accent-color);
+        }
+
+        .delete-btn:hover {
+            border-color: #dc2626;
+            color: #dc2626;
+        }
+
+        .task-completion-status {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            font-size: 10px;
+            font-weight: 600;
+            padding: 4px 8px;
+            border-radius: 12px;
+            text-transform: uppercase;
+        }
+
+        .task-completion-status.completed {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .task-completion-status.pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        /* Empty states and messages */
+        .empty-tasks, .error-message {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-secondary);
+        }
+
+        .empty-icon, .error-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.6;
+        }
+
+        .empty-tasks p, .error-message p {
+            font-size: 16px;
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+        }
+
+        .empty-tasks small {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .retry-btn {
+            background: var(--accent-color);
             color: white;
             border: none;
-            border-radius: 4px;
+            padding: 8px 16px;
+            border-radius: 6px;
             cursor: pointer;
-            font-size: 0.8rem;
+            margin-top: 12px;
+            transition: all 0.2s ease;
         }
 
-        .task-complete-btn.completed {
-            background: #9E9E9E;
-            cursor: default;
+        .retry-btn:hover {
+            opacity: 0.8;
+        }
+
+        /* Notifications */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            z-index: 1000;
+            transform: translateX(100%);
+            opacity: 0;
+            transition: all 0.3s ease;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+            opacity: 1;
+        }
+
+        .notification.success {
+            background: #238636;
+        }
+
+        .notification.error {
+            background: #dc2626;
         }
         
         /* Mensagens */
@@ -151,27 +496,29 @@
         }
         
         .error {
-            background-color: #ffebee;
-            color: #c62828;
-            padding: 0.5rem;
-            border-radius: 4px;
+            background-color: var(--error-bg);
+            color: var(--error-text);
+            padding: 0.75rem;
+            border-radius: 6px;
+            border-left: 4px solid var(--error-text);
         }
         
         .success {
-            background-color: #e8f5e9;
-            color: #2e7d32;
-            padding: 0.5rem;
-            border-radius: 4px;
+            background-color: var(--success-bg);
+            color: var(--success-text);
+            padding: 0.75rem;
+            border-radius: 6px;
+            border-left: 4px solid var(--success-text);
         }
         
         footer {
             text-align: center;
             padding: 1rem;
-            background-color: #f4f4f4;
-            border-top: 1px solid #ddd;
-            position: fixed;
-            bottom: 0;
-            width: 100%;
+            background-color: var(--bg-secondary);
+            border-top: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-top: 2rem;
         }
 
         /* Responsividade */
@@ -188,10 +535,27 @@
 
             .split-container {
                 flex-direction: column;
+                gap: 1rem;
+            }
+
+            .calendar-section {
+                margin-right: 0;
             }
 
             .tasks-section {
                 width: 100%;
+                flex: none;
+                margin-left: 0;
+            }
+            
+            .task-card {
+                margin-bottom: 8px;
+            }
+            
+            .task-card-footer {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
             }
 
             .resizer {
@@ -202,6 +566,65 @@
                 padding: 1rem;
             }
         }
+        
+        /* Dark mode toggle */
+        .theme-toggle {
+            background: none;
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 0.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: all 0.3s ease;
+            margin-left: 1rem;
+        }
+        
+        .theme-toggle:hover {
+            background-color: var(--bg-tertiary);
+            border-color: var(--accent-color);
+        }
+        
+        /* Form elements dark mode */
+        input, textarea, select, button {
+            background-color: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+        
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.1);
+        }
+        
+        /* Links */
+        a {
+            color: var(--accent-color);
+        }
+        
+        a:hover {
+            color: var(--accent-color);
+            opacity: 0.8;
+        }
+        
+        /* Scrollbar dark mode */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
+        }
     </style>
 </head>
 <body>
@@ -210,20 +633,23 @@
             <ul>
                 <div class="nav-left">
                     {% if user.is_authenticated %}
-                        <li><a href="{% url 'home' %}" class="{% if request.resolver_match.url_name == 'home' %}active{% endif %}">
+                        <li><a href="{% url 'dashboard' %}" class="{% if request.resolver_match.url_name == 'dashboard' or request.resolver_match.url_name == 'home' %}active{% endif %}">
+                            <i class="fas fa-home"></i> Dashboard
+                        </a></li>
+                        <li><a href="{% url 'calendar_view' %}" class="{% if request.resolver_match.url_name == 'calendar_view' %}active{% endif %}">
                             <i class="fas fa-calendar"></i> Calendário
                         </a></li>
-                        <li><a href="{% url 'dashboard_metrics' %}" class="{% if request.resolver_match.url_name == 'dashboard_metrics' %}active{% endif %}">
-                            <i class="fas fa-chart-line"></i> Dashboard
-                        </a></li>
-                        <li><a href="{% url 'challenge_list' %}" class="{% if 'challenge' in request.resolver_match.url_name %}active{% endif %}">
-                            <i class="fas fa-trophy"></i> Desafios
+                        <li><a href="{% url 'objective_list' %}" class="{% if 'objective' in request.resolver_match.url_name %}active{% endif %}">
+                            <i class="fas fa-target"></i> Objetivos
                         </a></li>
                     {% endif %}
                 </div>
                 <div class="nav-right">
                     {% if user.is_authenticated %}
                         <span class="user-email"><i class="fas fa-user"></i> {{ user.email }}</span>
+                        <button class="theme-toggle" onclick="toggleTheme()" title="Alternar tema">
+                            <i class="fas fa-moon" id="theme-icon"></i>
+                        </button>
                         <li><a href="{% url 'user_logout' %}"><i class="fas fa-sign-out-alt"></i> Sair</a></li>
                     {% else %}
                         <li><a href="{% url 'user_login' %}">Login</a></li>
@@ -264,54 +690,97 @@
         </div>
     </main>
 
-    <footer>
-        <p>© 2024 Calendário Minimalista</p>
-    </footer>
+
 
     <script>
         // Funcionalidade de redimensionamento
         const resizer = document.getElementById('dragMe');
         const leftSide = resizer.previousElementSibling;
         const rightSide = resizer.nextElementSibling;
+        const container = resizer.parentNode;
         
-        let x = 0;
-        let leftWidth = 0;
+        let isResizing = false;
+        let startX = 0;
+        let startLeftWidth = 0;
         
         const mouseDownHandler = function(e) {
-            x = e.clientX;
-            leftWidth = leftSide.getBoundingClientRect().width;
+            isResizing = true;
+            startX = e.clientX;
+            startLeftWidth = leftSide.getBoundingClientRect().width;
             
             document.addEventListener('mousemove', mouseMoveHandler);
             document.addEventListener('mouseup', mouseUpHandler);
             
             resizer.classList.add('dragging');
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+            
+            e.preventDefault();
         };
         
         const mouseMoveHandler = function(e) {
-            const dx = e.clientX - x;
-            const newLeftWidth = leftWidth + dx;
-            const containerWidth = resizer.parentNode.getBoundingClientRect().width;
+            if (!isResizing) return;
             
-            if (newLeftWidth > 300 && newLeftWidth < (containerWidth - 300)) {
-                leftSide.style.flex = '0 0 ' + newLeftWidth + 'px';
-                resizer.style.right = (containerWidth - newLeftWidth) + 'px';
-            }
+            const dx = e.clientX - startX;
+            const containerWidth = container.getBoundingClientRect().width;
+            const resizerWidth = 5;
+            const minLeftWidth = 300;
+            const minRightWidth = 280;
+            
+            let newLeftWidth = startLeftWidth + dx;
+            
+            // Enforce minimum and maximum widths
+            newLeftWidth = Math.max(minLeftWidth, newLeftWidth);
+            newLeftWidth = Math.min(containerWidth - minRightWidth - resizerWidth, newLeftWidth);
+            
+            const newRightWidth = containerWidth - newLeftWidth - resizerWidth;
+            
+            // Update layout
+            leftSide.style.flex = `0 0 ${newLeftWidth}px`;
+            rightSide.style.flex = `0 0 ${newRightWidth}px`;
+            
+            e.preventDefault();
         };
         
         const mouseUpHandler = function() {
+            isResizing = false;
             document.removeEventListener('mousemove', mouseMoveHandler);
             document.removeEventListener('mouseup', mouseUpHandler);
+            
             resizer.classList.remove('dragging');
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
         };
         
+        // Add event listeners
         resizer.addEventListener('mousedown', mouseDownHandler);
+        
+        // Handle window resize
+        window.addEventListener('resize', function() {
+            // Reset to default layout on window resize
+            leftSide.style.flex = '1';
+            rightSide.style.flex = '0 0 300px';
+        });
+        
+        // Initialize proper sizing on load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Ensure proper initial layout
+            leftSide.style.flex = '1';
+            rightSide.style.flex = '0 0 300px';
+            
+            // Auto-update selected date display to today
+            const today = new Date().toISOString().split('T')[0];
+            updateSelectedDate(today);
+        });
 
         // Gerenciamento de tarefas
         let selectedDate = new Date().toISOString().split('T')[0];
 
         function updateSelectedDate(date) {
             selectedDate = date;
-            document.getElementById('selectedDate').textContent = new Date(date).toLocaleDateString();
+            // Fix timezone issues by creating date properly
+            const dateObj = new Date(date + 'T12:00:00');
+            document.getElementById('selectedDate').textContent = dateObj.toLocaleDateString('pt-BR');
             loadTasks(date);
         }
 
@@ -322,39 +791,201 @@
                     const tasksList = document.getElementById('dayTasks');
                     tasksList.innerHTML = '';
                     
+                    if (data.tasks.length === 0) {
+                        tasksList.innerHTML = `
+                            <div class="empty-tasks">
+                                <div class="empty-icon">📅</div>
+                                <p>Nenhuma tarefa para este dia</p>
+                                <small>Adicione uma nova tarefa para começar</small>
+                            </div>
+                        `;
+                        return;
+                    }
+                    
                     data.tasks.forEach(task => {
                         const taskElement = document.createElement('div');
-                        taskElement.className = 'task-item';
+                        taskElement.className = `task-card ${task.is_done ? 'completed' : ''}`;
+                        
+                        // Determine task type and color
+                        const isObjectiveTask = task.objective_id !== null;
+                        const objectiveTitle = task.objective_title || '';
+                        
                         taskElement.innerHTML = `
-                            <span>${task.description}</span>
-                            <button onclick="completeTask(${task.id})" class="task-complete-btn ${task.is_done ? 'completed' : ''}">
-                                ${task.is_done ? 'Completada' : 'Completar'}
-                            </button>
+                            <div class="task-card-header">
+                                <div class="task-checkbox-container">
+                                    <input type="checkbox" 
+                                           class="task-checkbox" 
+                                           ${task.is_done ? 'checked' : ''}
+                                           onclick="toggleTaskCompletion(${task.id}, this)">
+                                    <div class="checkbox-custom"></div>
+                                </div>
+                                <div class="task-type-indicator ${isObjectiveTask ? 'objective' : 'additional'}">
+                                    ${isObjectiveTask ? '🎯' : '📋'}
+                                </div>
+                            </div>
+                            
+                            <div class="task-card-content">
+                                <div class="task-description">
+                                    ${task.description}
+                                </div>
+                                
+                                ${isObjectiveTask ? `
+                                    <div class="task-objective-tag">
+                                        <span class="objective-label">Objetivo:</span>
+                                        <span class="objective-name">${objectiveTitle}</span>
+                                    </div>
+                                ` : `
+                                    <div class="task-additional-tag">
+                                        <span class="additional-label">Tarefa Extra</span>
+                                    </div>
+                                `}
+                                
+                                <div class="task-card-footer">
+                                    <div class="task-date">
+                                        ${new Date(date + 'T12:00:00').toLocaleDateString('pt-BR')}
+                                    </div>
+                                    
+                                    <div class="task-actions">
+                                        <button onclick="editTask(${task.id})" class="task-btn edit-btn" title="Editar">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button onclick="deleteTask(${task.id})" class="task-btn delete-btn" title="Excluir">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="task-completion-status ${task.is_done ? 'completed' : 'pending'}">
+                                ${task.is_done ? 'Concluída ✓' : 'Pendente'}
+                            </div>
                         `;
                         tasksList.appendChild(taskElement);
                     });
+                })
+                .catch(error => {
+                    console.error('Erro ao carregar tarefas:', error);
+                    document.getElementById('dayTasks').innerHTML = `
+                        <div class="error-message">
+                            <div class="error-icon">⚠️</div>
+                            <p>Erro ao carregar tarefas</p>
+                            <button onclick="loadTasks('${date}')" class="retry-btn">Tentar novamente</button>
+                        </div>
+                    `;
                 });
         }
 
-        function completeTask(taskId) {
+        // Updated task functions
+        function toggleTaskCompletion(taskId, checkbox) {
+            const taskCard = checkbox.closest('.task-card');
             const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            
+            // Immediate UI feedback
+            taskCard.classList.add('updating');
             
             fetch(`/tasks/${taskId}/complete/`, {
                 method: 'POST',
                 headers: {
-                    'X-CSRFToken': csrfToken
+                    'X-CSRFToken': csrfToken,
+                    'Content-Type': 'application/json'
                 }
             })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    loadTasks(selectedDate);
+                    // Update UI based on new status
+                    if (data.is_done) {
+                        taskCard.classList.add('completed');
+                        taskCard.querySelector('.task-completion-status').textContent = 'Concluída ✓';
+                        taskCard.querySelector('.task-completion-status').className = 'task-completion-status completed';
+                    } else {
+                        taskCard.classList.remove('completed');
+                        taskCard.querySelector('.task-completion-status').textContent = 'Pendente';
+                        taskCard.querySelector('.task-completion-status').className = 'task-completion-status pending';
+                    }
+                    
+                    // Show success animation
+                    taskCard.classList.add('success-animation');
+                    setTimeout(() => {
+                        taskCard.classList.remove('success-animation', 'updating');
+                    }, 600);
+                    
+                    // Dispatch event to update dashboard stats
+                    window.dispatchEvent(new CustomEvent('taskCompleted', {
+                        detail: { taskId: taskId, isCompleted: data.is_done }
+                    }));
+                    
+                    // Update dashboard stats if function is available
+                    if (typeof updateDashboardStats === 'function') {
+                        setTimeout(updateDashboardStats, 300);
+                    }
+                } else {
+                    // Revert checkbox on error
+                    checkbox.checked = !checkbox.checked;
+                    showErrorMessage('Erro ao atualizar tarefa');
                 }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                checkbox.checked = !checkbox.checked;
+                taskCard.classList.remove('updating');
+                showErrorMessage('Erro de conexão');
             });
         }
+        
+        function editTask(taskId) {
+            window.location.href = `/tasks/${taskId}/update/`;
+        }
+        
+        function deleteTask(taskId) {
+            if (confirm('Tem certeza que deseja excluir esta tarefa?')) {
+                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+                
+                fetch(`/tasks/${taskId}/delete/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrfToken
+                    }
+                })
+                .then(response => {
+                    if (response.ok) {
+                        loadTasks(selectedDate);
+                        showSuccessMessage('Tarefa excluída com sucesso');
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao excluir:', error);
+                    showErrorMessage('Erro ao excluir tarefa');
+                });
+            }
+        }
+        
+        function showSuccessMessage(message) {
+            showNotification(message, 'success');
+        }
+        
+        function showErrorMessage(message) {
+            showNotification(message, 'error');
+        }
+        
+        function showNotification(message, type) {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            // Show animation
+            setTimeout(() => notification.classList.add('show'), 10);
+            
+            // Hide after 3 seconds
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => document.body.removeChild(notification), 300);
+            }, 3000);
+        }
 
-        // Inicializar com a data atual
-        updateSelectedDate(selectedDate);
+        // Note: Date initialization moved to DOMContentLoaded event above
 
         // Event listeners para dias do calendário
         document.querySelectorAll('.calendar-day').forEach(day => {
@@ -370,6 +1001,52 @@
                 message.style.opacity = '0';
                 setTimeout(() => message.remove(), 300);
             }, 5000);
+        });
+        
+        // Dark mode functionality
+        function toggleTheme() {
+            const html = document.documentElement;
+            const themeIcon = document.getElementById('theme-icon');
+            const currentTheme = html.getAttribute('data-theme');
+            
+            if (currentTheme === 'dark') {
+                html.removeAttribute('data-theme');
+                localStorage.setItem('theme', 'light');
+                themeIcon.className = 'fas fa-moon';
+            } else {
+                html.setAttribute('data-theme', 'dark');
+                localStorage.setItem('theme', 'dark');
+                themeIcon.className = 'fas fa-sun';
+            }
+        }
+        
+        // Initialize theme on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const savedTheme = localStorage.getItem('theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const themeIcon = document.getElementById('theme-icon');
+            
+            if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                if (themeIcon) themeIcon.className = 'fas fa-sun';
+            } else {
+                document.documentElement.removeAttribute('data-theme');
+                if (themeIcon) themeIcon.className = 'fas fa-moon';
+            }
+        });
+        
+        // Listen for system theme changes
+        window.matchMedia('(prefers-color-scheme: dark)').addListener(function(e) {
+            if (!localStorage.getItem('theme')) {
+                const themeIcon = document.getElementById('theme-icon');
+                if (e.matches) {
+                    document.documentElement.setAttribute('data-theme', 'dark');
+                    if (themeIcon) themeIcon.className = 'fas fa-sun';
+                } else {
+                    document.documentElement.removeAttribute('data-theme');
+                    if (themeIcon) themeIcon.className = 'fas fa-moon';
+                }
+            }
         });
     </script>
 </body>
