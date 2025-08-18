@@ -20,9 +20,8 @@ def invalidate_user_cache(user_id):
     CacheManager.invalidate_user_cache(user_id)
 
 def home(request):
-    if request.method == 'GET':
-        return redirect('dashboard')
-    return render(request, 'calendario/home.html')
+    # Home agora redireciona para dashboard que é a página principal
+    return redirect('dashboard')
 
 def register_new_user(request):
     if request.method == 'POST':
@@ -117,6 +116,48 @@ def dashboard(request):
     }
     
     return render(request, 'calendario/cave_dashboard.html', context)
+
+
+@login_required
+def calendar_view(request):
+    """Expanded calendar view for comprehensive task visualization"""
+    # Get all user tasks for the current month and surrounding months
+    from datetime import date, timedelta
+    import json
+    
+    # Get tasks for a wider date range (3 months around current month)
+    today = date.today()
+    start_date = date(today.year, today.month, 1) - timedelta(days=90)
+    end_date = date(today.year, today.month, 1) + timedelta(days=120)
+    
+    tasks = Task.objects.filter(
+        user=request.user,
+        date__gte=start_date,
+        date__lte=end_date
+    ).select_related('objective').order_by('date', 'is_done')
+    
+    # Get reminders
+    reminders = Reminder.objects.filter(user=request.user).order_by('date')
+    
+    # Serialize tasks for JavaScript
+    tasks_data = []
+    for task in tasks:
+        tasks_data.append({
+            'id': task.id,
+            'description': task.description,
+            'date': task.date.strftime('%Y-%m-%d'),
+            'is_done': task.is_done,
+            'objective_title': task.objective.title if task.objective else None,
+            'is_objective_task': task.is_objective_task
+        })
+    
+    context = {
+        'tasks': tasks,
+        'reminders': reminders,
+        'tasks_json': json.dumps(tasks_data),
+    }
+    
+    return render(request, 'calendario/calendar_expanded.html', context)
 
 
 @login_required
@@ -403,7 +444,11 @@ def cave_metrics(request):
 
 @login_required
 def objective_list(request):
-    """Cave Mode objectives management"""
+    """Enhanced objectives and task management page"""
+    from datetime import date, timedelta
+    import json
+    
+    # Get objectives
     active_objectives = Objective.objects.filter(
         user=request.user,
         is_active=True
@@ -414,9 +459,50 @@ def objective_list(request):
         is_active=False
     ).order_by('-created_at')
     
+    # Get recent tasks (last 30 days) for task management
+    today = date.today()
+    start_date = today - timedelta(days=30)
+    
+    recent_tasks = Task.objects.filter(
+        user=request.user,
+        date__gte=start_date
+    ).select_related('objective').order_by('-date', 'is_done')
+    
+    # Get pending tasks (future + today's incomplete)
+    pending_tasks = Task.objects.filter(
+        user=request.user,
+        date__gte=today,
+        is_done=False
+    ).select_related('objective').order_by('date')
+    
+    # Task statistics
+    total_tasks = Task.objects.filter(user=request.user).count()
+    completed_tasks = Task.objects.filter(user=request.user, is_done=True).count()
+    
+    # Tasks by objective statistics
+    objective_task_stats = []
+    for objective in active_objectives:
+        obj_total = Task.objects.filter(user=request.user, objective=objective).count()
+        obj_completed = Task.objects.filter(user=request.user, objective=objective, is_done=True).count()
+        obj_pending = Task.objects.filter(user=request.user, objective=objective, is_done=False, date__gte=today).count()
+        
+        objective_task_stats.append({
+            'objective': objective,
+            'total_tasks': obj_total,
+            'completed_tasks': obj_completed,
+            'pending_tasks': obj_pending,
+            'completion_rate': (obj_completed / obj_total * 100) if obj_total > 0 else 0
+        })
+    
     context = {
         'active_objectives': active_objectives,
-        'inactive_objectives': inactive_objectives
+        'inactive_objectives': inactive_objectives,
+        'recent_tasks': recent_tasks,
+        'pending_tasks': pending_tasks,
+        'total_tasks': total_tasks,
+        'completed_tasks': completed_tasks,
+        'completion_rate': (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0,
+        'objective_task_stats': objective_task_stats,
     }
     return render(request, 'calendario/objective_list.html', context)
 

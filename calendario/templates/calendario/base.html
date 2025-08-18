@@ -633,11 +633,11 @@
             <ul>
                 <div class="nav-left">
                     {% if user.is_authenticated %}
-                        <li><a href="{% url 'home' %}" class="{% if request.resolver_match.url_name == 'home' %}active{% endif %}">
-                            <i class="fas fa-calendar"></i> Calendário
+                        <li><a href="{% url 'dashboard' %}" class="{% if request.resolver_match.url_name == 'dashboard' or request.resolver_match.url_name == 'home' %}active{% endif %}">
+                            <i class="fas fa-home"></i> Dashboard
                         </a></li>
-                        <li><a href="{% url 'cave_metrics' %}" class="{% if request.resolver_match.url_name == 'cave_metrics' %}active{% endif %}">
-                            <i class="fas fa-chart-line"></i> Dashboard
+                        <li><a href="{% url 'calendar_view' %}" class="{% if request.resolver_match.url_name == 'calendar_view' %}active{% endif %}">
+                            <i class="fas fa-calendar"></i> Calendário
                         </a></li>
                         <li><a href="{% url 'objective_list' %}" class="{% if 'objective' in request.resolver_match.url_name %}active{% endif %}">
                             <i class="fas fa-target"></i> Objetivos

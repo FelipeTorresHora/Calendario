@@ -7,9 +7,10 @@ urlpatterns = [
     path('logout/', views.user_logout, name='user_logout'),
     path('register/', views.register_new_user, name='register'),
     
-    # Rotas de Dashboard
-    path('', views.home, name='home'),
-    path('dashboard/', views.dashboard, name='dashboard'),
+    # Rotas de Dashboard e Páginas Principais
+    path('', views.dashboard, name='home'),  # Dashboard agora é a página principal
+    path('dashboard/', views.dashboard, name='dashboard'),  # Mantém compatibilidade
+    path('calendario/', views.calendar_view, name='calendar_view'),  # Nova visualização expandida do calendário
 
     # Rotas de Tarefas
     path('tasks/create/', views.task_create, name='task_create'),
