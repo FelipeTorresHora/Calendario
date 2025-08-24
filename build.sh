@@ -3,10 +3,10 @@
 set -o errexit
 
 # Install Python dependencies
-pip install -r requirements.txt
+pip3 install -r requirements.txt
 
 # Collect static files
-python manage.py collectstatic --no-input
+python3 manage.py collectstatic --no-input
 
 # Run database migrations
-python manage.py migrate
+python3 manage.py migrate

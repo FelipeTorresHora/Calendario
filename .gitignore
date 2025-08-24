@@ -4,3 +4,4 @@ __pycache__/
 .env
 .env.example
 db.sqlite3
+DEPLOY_RENDER.md
