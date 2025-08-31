@@ -1,7 +1,186 @@
-dev.txt
-venv/
-__pycache__/
+# ================================
+# ARQUIVOS SENSÍVEIS E CONFIGURAÇÃO
+# ================================
+
+# Variáveis de ambiente (contêm dados sensíveis)
 .env
-.env.example
+.env.local
+.env.production
+.env.staging
+
+# IMPORTANTE: .env.example deve ser commitado como referência
+# Não adicione .env.example aqui!
+
+# Chaves e certificados
+*.pem
+*.key
+*.crt
+*.p12
+
+# ================================
+# PYTHON E DJANGO
+# ================================
+
+# Bytecode / Cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+
+# Django
 db.sqlite3
+db.sqlite3-journal
+*.log
+local_settings.py
+staticfiles/
+media/
+
+# Django migrations (opcional - descomente se quiser ignorar)
+# */migrations/*.py
+# !*/migrations/__init__.py
+
+# ================================
+# IDEs E EDITORES
+# ================================
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# PyCharm
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# ================================
+# SISTEMA OPERACIONAL
+# ================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# ================================
+# FERRAMENTAS DE DESENVOLVIMENTO
+# ================================
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+.tox/
+
+# Node.js (se usar)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+
+# ================================
+# ARQUIVOS ESPECÍFICOS DO PROJETO
+# ================================
+
+# Arquivos de desenvolvimento
+dev.txt
 DEPLOY_RENDER.md
+*.md.backup
+
+# Logs personalizados
+*.log.*
+logs/
+
+# Backups
+*.bak
+*.backup
+*.old
+*.orig
+
+# Arquivos temporários
+*.tmp
+*.temp
+temp/
+tmp/

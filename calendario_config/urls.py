@@ -19,5 +19,6 @@ from django.urls import path,include
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('accounts/', include('allauth.urls')),  # Django allauth URLs
     path('', include('calendario.urls')),  # Inclui as rotas do app "calendario"
 ]
