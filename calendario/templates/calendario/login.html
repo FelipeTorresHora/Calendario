@@ -1,66 +1,523 @@
 {% extends 'calendario/base.html' %}
+{% load socialaccount %}
 
-{% block title %}Login{% endblock %}
+{% block title %}Login - Calendário{% endblock %}
 
 {% block content %}
 <style>
-    .login-container {
-        max-width: 400px;
-        margin: 2rem auto;
+    /* Modern login page styles */
+    .login-wrapper {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        margin: -2rem;
         padding: 2rem;
-        background-color: #fff;
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .login-card {
+        background: var(--bg-primary);
+        border-radius: 20px;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        padding: 3rem 2.5rem;
+        width: 100%;
+        max-width: 400px;
+        position: relative;
+        overflow: hidden;
+        border: 1px solid var(--border-light);
+    }
+    
+    .login-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    .login-header {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+    
+    .login-logo {
+        width: 60px;
+        height: 60px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1rem;
+        font-size: 24px;
+        color: white;
+    }
+    
+    .login-title {
+        font-size: 28px;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin: 0 0 0.5rem 0;
+    }
+    
+    .login-subtitle {
+        color: var(--text-secondary);
+        font-size: 16px;
+        margin: 0;
+    }
+    
+    .login-form {
+        margin-bottom: 2rem;
     }
     
     .form-group {
-        margin-bottom: 1rem;
+        margin-bottom: 1.5rem;
+        position: relative;
     }
     
-    .form-group label {
+    .form-label {
         display: block;
+        font-weight: 600;
+        color: var(--text-primary);
         margin-bottom: 0.5rem;
+        font-size: 14px;
     }
     
-    .form-group input {
+    .form-input {
         width: 100%;
-        padding: 0.5rem;
-        border: 1px solid #ddd;
+        padding: 12px 16px;
+        border: 2px solid var(--border-color);
+        border-radius: 12px;
+        background: var(--bg-tertiary);
+        color: var(--text-primary);
+        font-size: 16px;
+        transition: all 0.3s ease;
+        box-sizing: border-box;
+    }
+    
+    .form-input:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        transform: translateY(-1px);
+    }
+    
+    .form-input.error {
+        border-color: #dc2626;
+        box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+    }
+    
+    .password-toggle {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        color: var(--text-secondary);
+        cursor: pointer;
+        font-size: 18px;
+        padding: 4px;
         border-radius: 4px;
+        transition: all 0.2s ease;
+    }
+    
+    .password-toggle:hover {
+        color: var(--text-primary);
+        background: var(--bg-secondary);
+    }
+    
+    .form-options {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        font-size: 14px;
+    }
+    
+    .remember-me {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--text-secondary);
+    }
+    
+    .remember-me input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+        accent-color: #667eea;
+    }
+    
+    .forgot-password {
+        color: #667eea;
+        text-decoration: none;
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+    
+    .forgot-password:hover {
+        color: #5a67d8;
+        text-decoration: underline;
     }
     
     .login-btn {
         width: 100%;
-        padding: 0.75rem;
-        background-color: #1976d2;
+        padding: 14px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
         border: none;
-        border-radius: 4px;
+        border-radius: 12px;
+        font-size: 16px;
+        font-weight: 600;
         cursor: pointer;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .login-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+    }
+    
+    .login-btn:active {
+        transform: translateY(0);
+    }
+    
+    .login-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+    }
+    
+    .login-btn .btn-text {
+        transition: opacity 0.3s ease;
+    }
+    
+    .login-btn .btn-spinner {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    
+    .login-btn.loading .btn-text {
+        opacity: 0;
+    }
+    
+    .login-btn.loading .btn-spinner {
+        opacity: 1;
+    }
+    
+    .spinner {
+        width: 20px;
+        height: 20px;
+        border: 2px solid rgba(255,255,255,0.3);
+        border-radius: 50%;
+        border-top-color: white;
+        animation: spin 1s ease-in-out infinite;
+    }
+    
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+    
+    .divider {
+        position: relative;
+        text-align: center;
+        margin: 2rem 0;
+        color: var(--text-secondary);
+        font-size: 14px;
+    }
+    
+    .divider::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: var(--border-color);
+    }
+    
+    .divider span {
+        background: var(--bg-primary);
+        padding: 0 1rem;
+    }
+    
+    .social-login {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        margin-bottom: 2rem;
+    }
+    
+    .social-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        padding: 12px 16px;
+        border: 2px solid var(--border-color);
+        background: var(--bg-tertiary);
+        color: var(--text-primary);
+        border-radius: 12px;
+        text-decoration: none;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        font-size: 15px;
+    }
+    
+    .social-btn:hover {
+        border-color: var(--accent-color);
+        background: var(--bg-secondary);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    
+    .social-btn.google:hover {
+        border-color: #db4437;
+    }
+    
+    .social-btn.github:hover {
+        border-color: #333;
+    }
+    
+    .social-icon {
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
     
     .register-link {
         text-align: center;
-        margin-top: 1rem;
+        color: var(--text-secondary);
+        font-size: 15px;
+    }
+    
+    .register-link a {
+        color: #667eea;
+        text-decoration: none;
+        font-weight: 600;
+        transition: color 0.2s ease;
+    }
+    
+    .register-link a:hover {
+        color: #5a67d8;
+        text-decoration: underline;
+    }
+    
+    .error-message {
+        background: var(--error-bg);
+        color: var(--error-text);
+        padding: 12px 16px;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        border-left: 4px solid var(--error-text);
+        font-size: 14px;
+    }
+    
+    .success-message {
+        background: var(--success-bg);
+        color: var(--success-text);
+        padding: 12px 16px;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        border-left: 4px solid var(--success-text);
+        font-size: 14px;
+    }
+    
+    @media (max-width: 768px) {
+        .login-wrapper {
+            margin: -2rem -1rem;
+            padding: 1rem;
+        }
+        
+        .login-card {
+            padding: 2rem 1.5rem;
+        }
+        
+        .login-title {
+            font-size: 24px;
+        }
     }
 </style>
 
-<div class="login-container">
-    <h2>Login</h2>
-    <form method="post">
-        {% csrf_token %}
-        <div class="form-group">
-            <label for="email">Email:</label>
-            <input type="email" id="email" name="email" required>
+<div class="login-wrapper">
+    <div class="login-card">
+        <div class="login-header">
+            <div class="login-logo">
+                📅
+            </div>
+            <h1 class="login-title">Bem-vindo</h1>
+            <p class="login-subtitle">Entre na sua conta para continuar</p>
         </div>
-        <div class="form-group">
-            <label for="password">Senha:</label>
-            <input type="password" id="password" name="password" required>
+        
+        {% if messages %}
+            {% for message in messages %}
+                <div class="{% if message.tags == 'error' %}error-message{% else %}success-message{% endif %}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+        
+        <!-- Social Login Buttons -->
+        <div class="social-login">
+            <a href="{% provider_login_url 'google' %}" class="social-btn google">
+                <span class="social-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24">
+                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                    </svg>
+                </span>
+                Continuar com Google
+            </a>
+            
+            <a href="{% provider_login_url 'github' %}" class="social-btn github">
+                <span class="social-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                    </svg>
+                </span>
+                Continuar com GitHub
+            </a>
         </div>
-        <button type="submit" class="login-btn">Entrar</button>
-    </form>
-    <p class="register-link">
-        Não tem uma conta? <a href="{% url 'register' %}">Registre-se</a>
-    </p>
+        
+        <div class="divider">
+            <span>ou entre com email</span>
+        </div>
+        
+        <!-- Login Form -->
+        <form class="login-form" method="post" id="loginForm">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="email" class="form-label">Email</label>
+                <input type="email" 
+                       id="email" 
+                       name="email" 
+                       class="form-input" 
+                       placeholder="seu@email.com"
+                       required
+                       autocomplete="email">
+            </div>
+            
+            <div class="form-group">
+                <label for="password" class="form-label">Senha</label>
+                <div style="position: relative;">
+                    <input type="password" 
+                           id="password" 
+                           name="password" 
+                           class="form-input" 
+                           placeholder="••••••••"
+                           required
+                           autocomplete="current-password">
+                    <button type="button" class="password-toggle" onclick="togglePassword()">
+                        <i class="fas fa-eye" id="passwordIcon"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="form-options">
+                <label class="remember-me">
+                    <input type="checkbox" name="remember_me">
+                    Lembrar de mim
+                </label>
+                <a href="/accounts/password/reset/" class="forgot-password">Esqueci minha senha</a>
+            </div>
+            
+            <button type="submit" class="login-btn" id="loginBtn">
+                <span class="btn-text">Entrar</span>
+                <div class="btn-spinner">
+                    <div class="spinner"></div>
+                </div>
+            </button>
+        </form>
+        
+        <p class="register-link">
+            Não tem uma conta? <a href="{% url 'register' %}">Criar conta gratuita</a>
+        </p>
+    </div>
 </div>
+
+<script>
+function togglePassword() {
+    const passwordInput = document.getElementById('password');
+    const passwordIcon = document.getElementById('passwordIcon');
+    
+    if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        passwordIcon.classList.remove('fa-eye');
+        passwordIcon.classList.add('fa-eye-slash');
+    } else {
+        passwordInput.type = 'password';
+        passwordIcon.classList.remove('fa-eye-slash');
+        passwordIcon.classList.add('fa-eye');
+    }
+}
+
+// Form validation and submission
+document.getElementById('loginForm').addEventListener('submit', function(e) {
+    const submitBtn = document.getElementById('loginBtn');
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+    
+    // Reset previous errors
+    emailInput.classList.remove('error');
+    passwordInput.classList.remove('error');
+    
+    let hasError = false;
+    
+    // Validate email
+    if (!emailInput.value.trim() || !emailInput.value.includes('@')) {
+        emailInput.classList.add('error');
+        hasError = true;
+    }
+    
+    // Validate password
+    if (!passwordInput.value.trim() || passwordInput.value.length < 3) {
+        passwordInput.classList.add('error');
+        hasError = true;
+    }
+    
+    if (hasError) {
+        e.preventDefault();
+        return;
+    }
+    
+    // Show loading state
+    submitBtn.classList.add('loading');
+    submitBtn.disabled = true;
+});
+
+// Real-time validation
+document.getElementById('email').addEventListener('blur', function() {
+    if (this.value.trim() && this.value.includes('@')) {
+        this.classList.remove('error');
+    }
+});
+
+document.getElementById('password').addEventListener('blur', function() {
+    if (this.value.trim() && this.value.length >= 3) {
+        this.classList.remove('error');
+    }
+});
+
+// Auto-hide messages after 5 seconds
+document.querySelectorAll('.error-message, .success-message').forEach(message => {
+    setTimeout(() => {
+        message.style.opacity = '0';
+        message.style.transform = 'translateY(-10px)';
+        setTimeout(() => message.remove(), 300);
+    }, 5000);
+});
+</script>
 {% endblock %}

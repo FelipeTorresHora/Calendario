@@ -671,6 +671,7 @@
         </div>
         {% endif %}
         
+        {% if user.is_authenticated %}
         <div class="split-container">
             <div class="calendar-section">
                 {% block content %}
@@ -688,6 +689,12 @@
                 </div>
             </div>
         </div>
+        {% else %}
+        <div class="calendar-section" style="margin-right: 0;">
+            {% block content %}
+            {% endblock %}
+        </div>
+        {% endif %}
     </main>
 
 
@@ -764,13 +771,16 @@
         
         // Initialize proper sizing on load
         document.addEventListener('DOMContentLoaded', function() {
-            // Ensure proper initial layout
-            leftSide.style.flex = '1';
-            rightSide.style.flex = '0 0 300px';
-            
-            // Auto-update selected date display to today
-            const today = new Date().toISOString().split('T')[0];
-            updateSelectedDate(today);
+            // Only initialize if user is authenticated (split container exists)
+            if (leftSide && rightSide) {
+                // Ensure proper initial layout
+                leftSide.style.flex = '1';
+                rightSide.style.flex = '0 0 300px';
+                
+                // Auto-update selected date display to today
+                const today = new Date().toISOString().split('T')[0];
+                updateSelectedDate(today);
+            }
         });
 
         // Gerenciamento de tarefas
@@ -785,6 +795,10 @@
         }
 
         function loadTasks(date) {
+            // Only load tasks if tasks section exists (user is authenticated)
+            const tasksList = document.getElementById('dayTasks');
+            if (!tasksList) return;
+            
             fetch(`/tasks/day/${date}/`)
                 .then(response => response.json())
                 .then(data => {
